@@ -29,23 +29,37 @@ Plataforma de **Gêmeo Digital Hospitalar (Digital Twin)** desenvolvida em Pytho
 5. **Queda do Sistema Informatizado sem Previsão de Retorno (Modo Papel):** Simula apagão de PEP/HIS/PACS/LIS com transição para formulários físicos carbonados, cálculo de prescrições acumuladas para conciliação e sobrecarga de enfermagem.
 6. **Ruptura Farmacêutica & Substituição Terapêutica Automática (CFT):** Identifica prescrições afetadas por falta de medicamentos vitais e aplica substituição padronizada em 1 clique.
 7. **Incidente com Múltiplas Vítimas (IMV — Protocolo START) & Restrição de RH (COFEN / RDC-7).**
+8. **7 Novos Cenários de Crise (Pontos Cegos Hospitalares & Infraestrutura Vital):**
+   - **Queda de Pressão / Congelamento do Tanque VIE de Oxigênio Líquido** (`2,6 kgf/cm²` — Risco de parada de ventiladores nas UTIs).
+   - **Pane de Osmose Reversa & Falta de Água na Hemodiálise** (18 pacientes renais retidos sob risco de hipercalemia letal).
+   - **Colapso da Agência Transfusional & Esgotamento de Sangue `O Negativo`** (Múltiplos Protocolos de Transfusão Maciça simultâneos).
+   - **Pane Total da CME / Autoclaves Inoperantes** (Esgotamento de caixas cirúrgicas estéreis a 18%).
+   - **Desastre Químico Agroindustrial (HazMat: Amônia Anidra / Organofosforados)** (+14 vítimas contaminadas no PS e ruptura de Atropina).
+   - **Incêndio / Fumaça Tóxica & Evacuação Horizontal de Emergência da UTI Adulto** (10 leitos bloqueados e transferência para SRPA).
+   - **Colapso Materno-Neonatal** (`UTI-NEO` em 20/20 leitos + 4 recém-nascidos prematuros extremos intubados retidos no Centro Obstétrico).
 
 ---
 
-## 📚 Motor de Decisões Baseadas em Evidências Científicas
+## 📚 Motor de Decisões Baseadas em Evidências Científicas (16 Protocolos + Monitor 96h)
 
-Inclui aba dedicada com classificação dinâmica **NAM/IOM *Crisis Standards of Care*** (*Conventional*, *Contingency* e *Crisis Care*), **Matriz 4S (*Space, Staff, Stuff, System* — Hick et al. / CHEST)** e **10 protocolos científicos executáveis com 1 clique**:
+Inclui aba dedicada com classificação dinâmica **NAM/IOM *Crisis Standards of Care*** (*Conventional*, *Contingency* e *Crisis Care*), **Monitor de Autossuficiência Hospitalar de 96 Horas (*The Joint Commission* `EM.12.02.11`)**, **Matriz 4S (*Space, Staff, Stuff, System* — Hick et al. / CHEST)** e **16 protocolos científicos executáveis com 1 clique**:
 
-- **Fluxo Puxado (*Pull System*) + *Discharge Lounge* + Giro UTI < 45 min** (*Goldfrad & Rowan / Lean nas Emergências PROADI-SUS*)
-- **Suavização do Mapa Cirúrgico (*Surgical Smoothing*)** (*Litvak et al. / IHO*)
-- ***Full Capacity Protocol* (+2 leitos/ala)** (*Viccellio et al. / Stony Brook / ACEP*)
-- **Triagem Reversa (*Reverse Triage*)** (*Kelen et al. / Johns Hopkins*)
-- ***Step-Down* de Monitores Guiado por `NEWS2 < 3`** (*Royal College of Physicians / CHEST*)
-- **Protocolo CHEST para Escassez de Ventiladores (VNI/CNAFO + Aparelhos de Anestesia)**
-- **Substituição Terapêutica Automática (Diretriz ASHP / CFT)**
-- **Protocolo ONC SAFER Guides (Contingência Offline & Conciliação de TI)**
-- **Protocolo NFPA 99 / OMS Hospital Safety Index (Barramento Crítico & O2)**
-- ***Functional Team Nursing* & Remanejamento Assistencial (COFEN 543/2017 / RDC-7)**
+1. **Fluxo Puxado (*Pull System*) + *Discharge Lounge* + Giro UTI < 45 min** (*Goldfrad & Rowan / Lean nas Emergências PROADI-SUS*)
+2. **Suavização do Mapa Cirúrgico (*Surgical Smoothing*)** (*Litvak et al. / IHO*)
+3. ***Full Capacity Protocol* (+2 leitos/ala)** (*Viccellio et al. / Stony Brook / ACEP*)
+4. **Triagem Reversa (*Reverse Triage*)** (*Kelen et al. / Johns Hopkins*)
+5. ***Step-Down* de Monitores Guiado por `NEWS2 < 3`** (*Royal College of Physicians / CHEST*)
+6. **Protocolo CHEST para Escassez de Ventiladores (VNI/CNAFO + Aparelhos de Anestesia)**
+7. **Substituição Terapêutica Automática (Diretriz ASHP / CFT)**
+8. **Protocolo ONC SAFER Guides (Contingência Offline & Conciliação de TI)**
+9. **Protocolo NFPA 99 / OMS Hospital Safety Index (Barramento Crítico & O2)**
+10. ***Functional Team Nursing* & Remanejamento Assistencial (COFEN 543/2017 / RDC-7)**
+11. **Regra de Autossuficiência de 96h (*Joint Commission*) & Conservação/Descongelamento do Tanque VIE de O2**
+12. **Plano de Emergência Hídrica Hospitalar (*CDC/EPA EWSP*) & Contingência Renal Anti-Hipercalemia**
+13. **Protocolo *AABB Tiered Blood Conservation* & Ácido Tranexâmico Precoce (*CRASH-2 / WOMAN*)**
+14. **Contingência de Esterilização da CME (*AAMI ST79 / RDC ANVISA 15* — Kits *Deep-Stock* & CME Cruzada)**
+15. **Protocolo *PRISM* de Descontaminação Química Agroindustrial (Regra dos 15 min & Reserva de Atropina)**
+16. **Matriz *TRAIN* (*Stanford*) de Evacuação Horizontal Crítica & Coorte Materno-Neonatal (*UCINCo*)**
 
 ---
 

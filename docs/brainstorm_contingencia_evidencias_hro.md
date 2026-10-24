@@ -142,3 +142,50 @@ O índice **WHO Hospital Safety Index (OMS/OPAS)** e a norma **NFPA 99 (Health C
 | **Falta de Medicamentos** | Autonomia $<12\text{h}$ ou Ruptura (`0h`) de item vital | Ativar substituição terapêutica padronizada pela CFT em massa no PEP | Conversão em massa EV $\rightarrow$ VO nas enfermarias e infusão estendida de beta-lactâmicos | *ASHP Drug Shortages Guidelines*; *ISMP Brasil* |
 | **Queda do Sistema (TI Offline s/ ETA)** | Indisponibilidade $>15\text{ min}$ sem previsão de retorno | Imprimir *Snapshot Local* de prescrições vigentes e ativar formulário físico carbonado (3 vias) | Dupla checagem presencial obrigatória p/ MAV/DVA + *Runners* físicos a cada 30 min (Lab/Farmácia) | *ONC SAFER Guides* (Sittig & Singh) |
 | **Blackout + Falha de Geradores** | Queda de rede + falha parcial/total de geradores | Desligar bombas de soro/dieta (manter apenas DVA/Sedação em bateria) e acoplar Ambu + O2 pneumático nos leitos de VM | Evacuação horizontal intrahospitalar para o bloco coberto ou acionamento SAER-Fron / SAMU se $>45\text{ min}$ | *WHO Safe Hospitals*; *NFPA 99* |
+
+
+---
+
+## 9. Expansão da Revisão: Novos Protocolos de Segurança & Cenários de Crise "Ponto Cego" para o Perfil do HRO
+
+Abaixo estão **6 novos protocolos de segurança baseados em evidências** e **7 cenários de crise frequentemente negligenciados ("pontos cegos")** na gestão hospitalar, selecionados especificamente para o perfil assistencial e geográfico do **Hospital Regional do Oeste (Chapecó/SC — referência de Trauma, Neurocirurgia, Oncologia UNACON, Maternidade de Alto Risco, UTI Neonatal/Pediátrica e Terapia Renal Substitutiva)**:
+
+### Parte A — 6 Novos Protocolos Internacionais que se Encaixam no HRO
+
+| # | Protocolo / Diretriz Internacional | Fonte Científica | Como se Encaixa no Perfil do HRO (340 Fixos + PS + 18 SRPA) |
+| :--- | :--- | :--- | :--- |
+| **11** | **Regra de Autossuficiência de 96 Horas (*96-Hour Sustainability Rule*)** | *The Joint Commission (EM.12.02.11) / CMS* | Monitora o *burn-rate* (taxa de consumo por hora versus censo ativo) de **6 insumos vitais**: Oxigênio Líquido (tanque VIE), Diesel dos Geradores, Água Potável/Osmose Reversa, Hemocomponentes `O-`/`O+`, Kits de Diálise e Nutrição Parenteral/Enteral. Define gatilho automático de evacuação preventiva caso a autonomia caia abaixo de 24h sem reabastecimento. |
+| **12** | **Triagem de Evacuação Vertical (`TRAIN` / *NICU-PED Evacuation Matrix*)** | *Lucile Packard / Stanford TRAIN Protocol & CHEST* | O HRO possui **20 leitos de `UTI-NEO`**, **10 de `UTI-PED`** e **35 de `MAT-OBST`**. Em caso de incêndio, fumaça ou falha estrutural em andar específico, o protocolo `TRAIN` classifica cada RN/criança/adulto crítico pelo nível de transporte necessário (Avental de bolso para RN estável, Incubadora de transporte com cilindro E, ou UTI Móvel), definindo rotas de evacuação horizontal (entre blocos) antes da vertical. |
+| **13** | **Protocolo de Conservação Escalonada de Hemocomponentes & `MTP` Racionado** | *AABB Disaster Operations Handbook / Traumashock Guidelines* | Como referência de Trauma (`BR-282` / `SC-283`) e Cirurgia Oncológica, um único politraumatizado em Protocolo de Transfusão Maciça (`MTP`) pode consumir 10–20 bolsas de Concentrado de Hemácias e Plaquetas em 2 horas. O protocolo institui o uso precoce de **Ácido Tranexâmico (TXA < 3h)**, recuperação intraoperatória (*Cell Saver*), gatilho transfusional restritivo (`Hb < 7,0 g/dL` na `UTI-AD` e enfermarias) e suspensão imediata de cirurgias com reserva cirúrgica de sangue. |
+| **14** | **Plano de Emergência Hídrica e Proteção da Osmose Reversa (`EWSP`)** | *CDC Emergency Water Supply Planning Guide for Hospitals / ASN* | Pacientes com IRA KDIGO 3 na `UTI-AD` (40 leitos) dependem de hemodiálise à beira-leito, que consome ~120 a 150 litros de água tratada por sessão. O protocolo do CDC define engate rápido de caminhão-pipa certificado direto no pré-tratamento da Osmose Reversa, manejo farmacológico agressivo de hipercalemia (Solução Polarizante + Gluconato de Cálcio + Poliestirenossulfonato/Ciclossilicato) e redução temporária do tempo de sessão (de 4h para 2h30-3h) em modo crise. |
+| **15** | **Protocolo de Contingência da CME (*Central Sterile Processing Failure*)** | *AAMI ST79 / ANVISA RDC nº 15 / ASPR TRACIE* | Se o vapor, as autoclaves ou a água desmineralizada da CME falharem, o **Centro Cirúrgico (10 salas + 18 SRPA)** para em menos de 12 horas por falta de caixas cirúrgicas estéreis. O protocolo ativa o uso restrito de kits de laparotomia/craniotomia de reserva (*deep-stock*), priorização exclusiva de caixas de trauma/emergência e convênio pré-validado de esterilização *off-site* com hospitais parceiros da região. |
+| **16** | **Protocolo `PRISM` / Descontaminação Química Agroindustrial (*HazMat*)** | *ASPR TRACIE / BARDA PRISM Guidance* | Dada a vocação agroindustrial de Chapecó e região (frigoríficos com **amônia anidra**, transporte de **organofosforados/defensivos agrícolas** e cloro), uma vítima contaminada que entra direto na Sala Vermelha do `PS-EMERG` contamina a equipe e fecha o Pronto-Socorro inteiro. O protocolo determina bloqueio de porta, tenda de descontaminação externa antes da triagem e estoque estratégico de **Atropina em altas doses + Pralidoxima + Hidroxicobalamina**. |
+
+---
+
+### Parte B — 7 Novos Cenários de Crise ("Pontos Cegos") para Simular no Gêmeo Digital
+
+1. **❄️ Queda de Pressão / Congelamento do Vaporizador da Usina de Oxigênio Líquido (Tanque VIE) e Vácuo Clínico:**
+   - *O que acontece:* Quando o número de pacientes em Ventilação Mecânica e Máscara de Alto Fluxo/CNAFO sobe simultaneamente (nas 3 UTIs + PS + 18 leitos da SRPA), a vazão extrema congela os vaporizadores atmosféricos do tanque de O2 líquido, derrubando a pressão da rede abaixo de `3,5 kgf/cm²` (disparando o alarme sonoro de todos os ventiladores mecânicos ao mesmo tempo).
+   - *Por que simular:* Diferente da falta de ventiladores físicos, aqui todos os ventiladores apitam por baixa pressão de linha, exigindo redução imediata de `FiO2` para o mínimo seguro (`SpO2 92-94%`), proibição de CNAFO (que consome até `60 L/min` por paciente!) e abertura da bateria de cilindros reserva.
+
+2. **💧 Falha de Abastecimento de Água / Pane na Osmose Reversa da Hemodiálise + Surto de Hipercalemia na UTI:**
+   - *O que acontece:* Rompimento de adutora externa ou contaminação/falha na Osmose Reversa impede a realização das sessões de hemodiálise dos pacientes críticos com Injúria Renal Aguda (`IRA KDIGO 3`) na `UTI-AD` e `CLIN-MED`.
+   - *Por que simular:* Gera fila crítica de pacientes dialíticos em risco de edema agudo de pulmão e hipercalemia grave (`K+ > 6,5 mEq/L`), exigindo protocolo medicamentoso de ponte nas prescrições do PEP e priorização absoluta das máquinas de diálise disponíveis.
+
+3. **🩸 Colapso da Agência Transfusional (Escassez Crítica de Sangue `O-` / `O+` e Plaquetas):**
+   - *O que acontece:* Dois politraumas graves simultâneos no `PS-EMERG` / `CC-SRPA` ou sangramento obstétrico grave na `MAT-OBST` (35 leitos) esgotam o estoque de hemácias `O negativo` e plaquetas do hospital.
+   - *Por que simular:* Obriga o bloqueio imediato de cirurgias oncológicas/ortopédicas de grande porte na `CLIN-CIR`, ativação de protocolo de sangue restritivo no PEP e acionamento emergencial do HEMOSC Chapecó.
+
+4. **♨️ Pane nas Autoclaves da CME (Central de Material e Esterilização) Travando o Bloco Cirúrgico:**
+   - *O que acontece:* Mesmo com leitos livres e médicos disponíveis, a quebra das autoclaves ou da caldeira de vapor zera o estoque de caixas cirúrgicas estéreis (ortopedia, neurocirurgia, laparotomia).
+   - *Por que simular:* Cria retenção pré-operatória de fraturas e abdome agudo no `PS-EMERG` e `CLIN-CIR` e testa a autonomia de caixas estéreis de emergência.
+
+5. **☢️ Acidente Químico Agroindustrial Regional (Vazamento de Amônia em Frigorífico / Intoxicação por Organofosforado):**
+   - *O que acontece:* Chegada súbita de 15 a 30 trabalhadores com broncoespasmo severo, edema de glote (amônia) ou síndrome colinérgica aguda (organofosforados), exigindo descontaminação externa na porta do `PS-EMERG`, intubação precoce e consumo explosivo de **Atropina / Broncodilatadores** na Farmácia.
+
+6. **🔥 Incêndio / Fumaça em Ala Crítica (Evacuação Horizontal da `UTI-NEO` 20 Leitos ou `UTI-AD` 40 Leitos):**
+   - *O que acontece:* Curto-circuito em ar-condicionado ou régua de gases obriga a evacuação imediata de uma ala inteira de pacientes intubados/incubadoras para a `CC-SRPA` (18 leitos) e outras alas em menos de 20 minutos.
+
+7. **👶 Surto Simultâneo na Maternidade de Alto Risco (`MAT-OBST` 35) + Superlotação da `UTI-NEO` (20):**
+   - *O que acontece:* Múltiplos partos prematuros extremos ou pré-eclâmpsias graves lotam os 20 leitos da `UTI-NEO` (100%), obrigando o suporte ventilatório neonatal dentro do Centro Obstétrico / `MAT-OBST` por falta de incubadoras e ventiladores neonatais.

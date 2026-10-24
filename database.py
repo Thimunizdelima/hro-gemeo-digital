@@ -252,6 +252,27 @@ def init_db(force_reset: bool = False):
         observacao_cc TEXT NOT NULL DEFAULT 'Centro Cirúrgico e SRPA (18 leitos) com giro regular. Vagas de UTI e Enfermaria alinhadas com mapa cirúrgico.'
     );
 
+    CREATE TABLE IF NOT EXISTS critical_utilities_state (
+        id INTEGER PRIMARY KEY CHECK (id = 1),
+        o2_rede_status TEXT NOT NULL DEFAULT 'NORMAL',
+        o2_pressao_kgf REAL NOT NULL DEFAULT 4.8,
+        o2_autonomia_horas INTEGER NOT NULL DEFAULT 96,
+        agua_hemodialise_status TEXT NOT NULL DEFAULT 'NORMAL',
+        pacientes_dialise_retidos INTEGER NOT NULL DEFAULT 0,
+        agua_autonomia_horas INTEGER NOT NULL DEFAULT 96,
+        hemoterapia_status TEXT NOT NULL DEFAULT 'NORMAL',
+        bolsas_o_neg_disponiveis INTEGER NOT NULL DEFAULT 28,
+        cme_autoclaves_status TEXT NOT NULL DEFAULT 'NORMAL',
+        caixas_cirurgicas_estereis_pct INTEGER NOT NULL DEFAULT 100,
+        hazmat_status TEXT NOT NULL DEFAULT 'NORMAL',
+        vitimas_hazmat_ativas INTEGER NOT NULL DEFAULT 0,
+        evacuacao_ala_status TEXT NOT NULL DEFAULT 'NORMAL',
+        ala_evacuada TEXT NOT NULL DEFAULT 'Nenhuma',
+        sobrecarga_materno_neonatal_status TEXT NOT NULL DEFAULT 'NORMAL',
+        rn_ventilacao_bloco_obstetrico INTEGER NOT NULL DEFAULT 0,
+        observacao_utilidades TEXT NOT NULL DEFAULT 'Gases medicinais (Tanque VIE 4,8 kgf/cm²), Osmose Reversa/Hemodiálise, Agência Transfusional, CME e rotas de segurança 100% operacionais (Autonomia >= 96h).'
+    );
+
     CREATE TABLE IF NOT EXISTS contingency_events (
         id INTEGER PRIMARY KEY AUTOINCREMENT,
         tipo TEXT NOT NULL,
@@ -308,6 +329,30 @@ def init_db(force_reset: bool = False):
             )
         """)
 
+    cur.execute("SELECT COUNT(*) as cnt FROM critical_utilities_state")
+    if cur.fetchone()["cnt"] == 0:
+        cur.execute("""
+            INSERT OR REPLACE INTO critical_utilities_state (
+                id, o2_rede_status, o2_pressao_kgf, o2_autonomia_horas,
+                agua_hemodialise_status, pacientes_dialise_retidos, agua_autonomia_horas,
+                hemoterapia_status, bolsas_o_neg_disponiveis,
+                cme_autoclaves_status, caixas_cirurgicas_estereis_pct,
+                hazmat_status, vitimas_hazmat_ativas,
+                evacuacao_ala_status, ala_evacuada,
+                sobrecarga_materno_neonatal_status, rn_ventilacao_bloco_obstetrico,
+                observacao_utilidades
+            ) VALUES (
+                1, 'NORMAL', 4.8, 96,
+                'NORMAL', 0, 96,
+                'NORMAL', 28,
+                'NORMAL', 100,
+                'NORMAL', 0,
+                'NORMAL', 'Nenhuma',
+                'NORMAL', 0,
+                'Gases medicinais (Tanque VIE 4,8 kgf/cm²), Osmose Reversa/Hemodiálise, Agência Transfusional, CME e rotas de segurança 100% operacionais (Autonomia >= 96h).'
+            )
+        """)
+
     conn.commit()
     conn.close()
 
@@ -333,6 +378,12 @@ def seed_pharmacy_and_power(conn: sqlite3.Connection):
          "Pantoprazol 40mg EV ou Famotidina 20mg", "40mg EV 24/24h"),
         ("Insulina Regular", "Insulina Regular Humana 100 UI/mL", "Controle Glicêmico", "VITAL", "NORMAL", 200,
          "Insulina Lispro / Asparte Ultrarrápida SC", "Conforme esquema HGT capilar"),
+        ("Atropina", "Sulfato de Atropina 0,5mg/mL", "Antídoto Colinérgico / HazMat", "VITAL", "NORMAL", 140,
+         "Pralidoxima + Glicopirrolato EV (Protocolo PRISM Intoxicação)", "2 a 4 mg EV a cada 10-15 min até atropinização"),
+        ("Gluconato de Cálcio", "Gluconato de Cálcio 10% (Ampola 10mL)", "Cardioproteção Hipercalemia / Diálise", "VITAL", "NORMAL", 160,
+         "Cloreto de Cálcio 10% EV + Solução Polarizante (Glicose 50% + Insulina)", "10 a 20 mL EV lento em 5 min"),
+        ("Ácido Tranexâmico", "Ácido Tranexâmico 250mg/5mL", "Antifibrinolítico / Economia de Sangue", "ALTA", "NORMAL", 180,
+         "Ácido Épsilon-Aminocaproico EV + Crioprecipitado dirigido", "1g EV em 10 min + 1g em 8h"),
     ]
     cur.executemany("""
         INSERT INTO pharmacy_inventory (
@@ -371,6 +422,28 @@ def seed_pharmacy_and_power(conn: sqlite3.Connection):
         ) VALUES (
             1, 'NORMAL', 10, 0, 18, 12, 1, 2, 0,
             'Centro Cirúrgico e SRPA (18 leitos) com giro regular. Vagas de UTI e Enfermaria alinhadas com mapa cirúrgico.'
+        )
+    """)
+
+    cur.execute("""
+        INSERT OR REPLACE INTO critical_utilities_state (
+            id, o2_rede_status, o2_pressao_kgf, o2_autonomia_horas,
+            agua_hemodialise_status, pacientes_dialise_retidos, agua_autonomia_horas,
+            hemoterapia_status, bolsas_o_neg_disponiveis,
+            cme_autoclaves_status, caixas_cirurgicas_estereis_pct,
+            hazmat_status, vitimas_hazmat_ativas,
+            evacuacao_ala_status, ala_evacuada,
+            sobrecarga_materno_neonatal_status, rn_ventilacao_bloco_obstetrico,
+            observacao_utilidades
+        ) VALUES (
+            1, 'NORMAL', 4.8, 96,
+            'NORMAL', 0, 96,
+            'NORMAL', 28,
+            'NORMAL', 100,
+            'NORMAL', 0,
+            'NORMAL', 'Nenhuma',
+            'NORMAL', 0,
+            'Gases medicinais (Tanque VIE 4,8 kgf/cm²), Osmose Reversa/Hemodiálise, Agência Transfusional, CME e rotas de segurança 100% operacionais (Autonomia >= 96h).'
         )
     """)
 

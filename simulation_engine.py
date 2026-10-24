@@ -90,10 +90,51 @@ def calcular_painel_gemeo_digital():
         "observacao_cc": "Centro Cirúrgico e SRPA (18 leitos) com giro regular."
     }
 
+    # Garantir existência de critical_utilities_state caso banco já existisse antes da atualização
+    cur.execute("""
+        CREATE TABLE IF NOT EXISTS critical_utilities_state (
+            id INTEGER PRIMARY KEY CHECK (id = 1),
+            o2_rede_status TEXT NOT NULL DEFAULT 'NORMAL',
+            o2_pressao_kgf REAL NOT NULL DEFAULT 4.8,
+            o2_autonomia_horas INTEGER NOT NULL DEFAULT 96,
+            agua_hemodialise_status TEXT NOT NULL DEFAULT 'NORMAL',
+            pacientes_dialise_retidos INTEGER NOT NULL DEFAULT 0,
+            agua_autonomia_horas INTEGER NOT NULL DEFAULT 96,
+            hemoterapia_status TEXT NOT NULL DEFAULT 'NORMAL',
+            bolsas_o_neg_disponiveis INTEGER NOT NULL DEFAULT 28,
+            cme_autoclaves_status TEXT NOT NULL DEFAULT 'NORMAL',
+            caixas_cirurgicas_estereis_pct INTEGER NOT NULL DEFAULT 100,
+            hazmat_status TEXT NOT NULL DEFAULT 'NORMAL',
+            vitimas_hazmat_ativas INTEGER NOT NULL DEFAULT 0,
+            evacuacao_ala_status TEXT NOT NULL DEFAULT 'NORMAL',
+            ala_evacuada TEXT NOT NULL DEFAULT 'Nenhuma',
+            sobrecarga_materno_neonatal_status TEXT NOT NULL DEFAULT 'NORMAL',
+            rn_ventilacao_bloco_obstetrico INTEGER NOT NULL DEFAULT 0,
+            observacao_utilidades TEXT NOT NULL DEFAULT 'Gases medicinais (Tanque VIE 4,8 kgf/cm²), Osmose Reversa/Hemodiálise, Agência Transfusional, CME e rotas de segurança 100% operacionais (Autonomia >= 96h).'
+        )
+    """)
+    cur.execute("SELECT * FROM critical_utilities_state WHERE id = 1")
+    util_row = cur.fetchone()
+    if not util_row:
+        cur.execute("INSERT OR REPLACE INTO critical_utilities_state (id) VALUES (1)")
+        conn.commit()
+        cur.execute("SELECT * FROM critical_utilities_state WHERE id = 1")
+        util_row = cur.fetchone()
+    utilities = dict(util_row)
+
     blackout_total = (power["rede_externa"] == "QUEDA_INDETERMINADA" and power["status_geradores"] == "FALHA_TOTAL")
     blackout_parcial = (power["rede_externa"] == "QUEDA_INDETERMINADA" and power["status_geradores"] == "FALHA_PARCIAL")
     sistema_fora_do_ar = (it_system["status_sistema"] == "QUEDA_INDETERMINADA")
     bloqueio_cirurgico = (surgical_center["status_fluxo"] == "BLOQUEIO_CADEIA_CC_UTI_ENF")
+
+    crise_o2 = utilities["o2_rede_status"] != "NORMAL"
+    crise_agua = utilities["agua_hemodialise_status"] != "NORMAL"
+    crise_sangue = utilities["hemoterapia_status"] != "NORMAL"
+    crise_cme = utilities["cme_autoclaves_status"] != "NORMAL"
+    crise_hazmat = utilities["hazmat_status"] != "NORMAL"
+    crise_evac = utilities["evacuacao_ala_status"] != "NORMAL"
+    crise_materno = utilities["sobrecarga_materno_neonatal_status"] != "NORMAL"
+    crise_ponto_cego_ativa = any([crise_o2, crise_agua, crise_sangue, crise_cme, crise_hazmat, crise_evac, crise_materno])
 
     cur.execute("SELECT * FROM pharmacy_inventory ORDER BY id")
     farmacia_rows = [dict(m) for m in cur.fetchall()]
@@ -209,8 +250,9 @@ def calcular_painel_gemeo_digital():
         penalidade_farmacia = len(meds_em_falta) * 6
         penalidade_ti = (38 + min(40, it_system["horas_sem_sistema"] * 2)) if sistema_fora_do_ar else 0
         penalidade_equip = (deficit_vent * 12) + (deficit_mon * 5)
+        penalidade_util = (25 if crise_o2 and vent_uso > 0 else 0) + (15 if crise_hazmat and r["codigo"] in ("PS-EMERG", "UTI-AD") else 0)
 
-        atraso_med_minutos = int(round((fator_sobrecarga_rh * 38) + (fator_superlotacao * 14) + penalidade_energia + penalidade_farmacia + penalidade_ti + penalidade_equip))
+        atraso_med_minutos = int(round((fator_sobrecarga_rh * 38) + (fator_superlotacao * 14) + penalidade_energia + penalidade_farmacia + penalidade_ti + penalidade_equip + penalidade_util))
 
         risco_setor = min(100, int(round(
             max(0, taxa_ocup - 75) * 1.4 +
@@ -221,8 +263,11 @@ def calcular_painel_gemeo_digital():
             (deficit_vent * 18) +
             (deficit_mon * 8) +
             (40 if blackout_total and vent_uso > 0 else (20 if blackout_total else 0)) +
+            (35 if crise_o2 and vent_uso > 0 else 0) +
             (25 if sistema_fora_do_ar else 0) +
             (25 if bloqueio_cirurgico and r["codigo"] in ("CC-SRPA", "UTI-AD", "CLIN-CIR") else 0) +
+            (25 if crise_materno and r["codigo"] in ("UTI-NEO", "MAT-OBST") else 0) +
+            (25 if crise_cme and r["codigo"] in ("CC-SRPA", "CLIN-CIR") else 0) +
             (len(meds_em_falta) * 5)
         )))
 
@@ -232,11 +277,13 @@ def calcular_painel_gemeo_digital():
             or deficit_vent > 0
             or deficit_mon >= 3
             or (blackout_total and vent_uso > 0)
+            or (crise_o2 and vent_uso > 0)
             or (sistema_fora_do_ar and r["tipo"] in ("UTI", "Emergencia", "Centro Cirurgico"))
             or (bloqueio_cirurgico and r["codigo"] in ("CC-SRPA", "UTI-AD", "CLIN-CIR"))
+            or (crise_materno and r["codigo"] in ("UTI-NEO", "MAT-OBST"))
         ):
             nivel_alerta = "CRITICO"
-        elif risco_setor >= 45 or taxa_ocup >= 90 or deficit_mon > 0 or blackout_parcial or sistema_fora_do_ar:
+        elif risco_setor >= 45 or taxa_ocup >= 90 or deficit_mon > 0 or blackout_parcial or sistema_fora_do_ar or crise_ponto_cego_ativa:
             nivel_alerta = "ALERTA"
         else:
             nivel_alerta = "NORMAL"
@@ -351,16 +398,16 @@ def calcular_painel_gemeo_digital():
 
     recomendacoes = gerar_recomendacoes_contingencia(
         setores_analisados, total_altas_seguras, power, it_system, surgical_center,
-        meds_em_falta, pacientes_afetados_falta_med, tot_deficit_vent, tot_deficit_mon
+        meds_em_falta, pacientes_afetados_falta_med, tot_deficit_vent, tot_deficit_mon, utilities
     )
 
     risco_global = int(round(sum(s["risco_assistencial"] * s["ocupados_atual"] for s in setores_analisados) / max(1, tot_ocupados)))
-    if blackout_total:
+    if blackout_total or crise_o2:
         risco_global = max(95, risco_global)
-    elif sistema_fora_do_ar or bloqueio_cirurgico or tot_deficit_vent > 0:
+    elif sistema_fora_do_ar or bloqueio_cirurgico or tot_deficit_vent > 0 or crise_ponto_cego_ativa:
         risco_global = max(84, risco_global)
 
-    if risco_global >= 75 or taxa_ocupacao_fixos >= 100 or blackout_total or sistema_fora_do_ar or bloqueio_cirurgico or tot_deficit_vent > 0:
+    if risco_global >= 75 or taxa_ocupacao_fixos >= 100 or blackout_total or sistema_fora_do_ar or bloqueio_cirurgico or tot_deficit_vent > 0 or crise_ponto_cego_ativa:
         nivel_contingencia_hospitalar = "NÍVEL 3 — VERMELHO (Catástrofe / Emergência Máxima)"
     elif risco_global >= 48 or taxa_ocupacao_fixos >= 90 or len(meds_em_falta) > 0 or blackout_parcial or tot_deficit_mon > 0:
         nivel_contingencia_hospitalar = "NÍVEL 2 — LARANJA (Sobrecarga Assistencial / Alerta Crítico)"
@@ -385,6 +432,7 @@ def calcular_painel_gemeo_digital():
         tot_deficit_mon=tot_deficit_mon,
         deficit_rh_total=max(0, tot_enf_ideal - tot_enf_atual) + max(0, tot_tec_ideal - tot_tec_atual) + max(0, tot_med_ideal - tot_med_atual),
         risco_global=risco_global,
+        utilities=utilities,
     )
 
     conn.close()
@@ -437,6 +485,7 @@ def calcular_painel_gemeo_digital():
         "power": power,
         "it_system": it_system,
         "surgical_center": surgical_center,
+        "utilities": utilities,
         "pharmacy": farmacia_rows,
         "top_occupied_areas": areas_maior_ocupacao,
         "sectors": setores_analisados,
@@ -448,9 +497,59 @@ def calcular_painel_gemeo_digital():
 
 def gerar_recomendacoes_contingencia(
     setores, total_altas_seguras, power, it_system, surgical_center,
-    meds_em_falta, pac_afetados_med, tot_deficit_vent, tot_deficit_mon
+    meds_em_falta, pac_afetados_med, tot_deficit_vent, tot_deficit_mon, utilities=None
 ):
     recs = []
+    if utilities:
+        if utilities.get("o2_rede_status") != "NORMAL":
+            recs.append({
+                "prioridade": "CRÍTICA",
+                "setor": f"GASES MEDICINAIS — QUEDA DE PRESSÃO / CONGELAMENTO TANQUE VIE ({utilities.get('o2_pressao_kgf')} kgf/cm²)",
+                "acao": f"Autonomia de Oxigênio Líquido caiu para {utilities.get('o2_autonomia_horas')}h! Risco de parada simultânea de ventiladores pneumáticos nas UTIs.",
+                "detalhe": "Acionar Protocolo #11 (Joint Commission 96h / Descongelamento VIE): chavear para bateria reserva de cilindros, reduzir alvo de SpO2 para 90-92% e substituir CNAFO 60L/min por VNI fechada."
+            })
+        if utilities.get("agua_hemodialise_status") != "NORMAL":
+            recs.append({
+                "prioridade": "CRÍTICA",
+                "setor": f"NEFROLOGIA & OSMOSE REVERSA ({utilities.get('pacientes_dialise_retidos')} Pacientes Retidos sem Diálise)",
+                "acao": f"Pane hídrica / contaminação de osmose reversa ({utilities.get('agua_hemodialise_status')}). Risco iminente de hipercalemia letal e EAP.",
+                "detalhe": "Acionar Protocolo #12 (CDC EWSP): administrar kit anti-hipercalemia (Gluconato de Cálcio + Solução Polarizante), acoplar caminhão-pipa potável clorado e transferir renais crônicos estáveis para clínicas satélites."
+            })
+        if utilities.get("hemoterapia_status") != "NORMAL":
+            recs.append({
+                "prioridade": "CRÍTICA",
+                "setor": f"AGÊNCIA TRANSFUSIONAL — ESCASSEZ DE SANGUE O NEGATIVO ({utilities.get('bolsas_o_neg_disponiveis')} Bolsas)",
+                "acao": "Acionamento simultâneo de Protocolo de Transfusão Maciça (MTP) esgotou a reserva de emergência O-.",
+                "detalhe": "Acionar Protocolo #13 (AABB Tiered Blood Conservation): administrar Ácido Tranexâmico (TXA 1g EV) precoce, suspender cirurgias eletivas de alto sangramento e requisitar remessa emergencial HEMOSC."
+            })
+        if utilities.get("cme_autoclaves_status") != "NORMAL":
+            recs.append({
+                "prioridade": "CRÍTICA",
+                "setor": f"CENTRAL DE MATERIAL E ESTERILIZAÇÃO — CME ({utilities.get('caixas_cirurgicas_estereis_pct')}% Kits Estéreis)",
+                "acao": "Falha das autoclaves principais de barreira ameaça paralisar Centro Cirúrgico, Obstetrícia e UTIs.",
+                "detalhe": "Acionar Protocolo #14 (AAMI ST79 / RDC 15): liberar estoque estratégico Deep-Stock de caixas de trauma/cesárea e ativar convênio de esterilização cruzada regional."
+            })
+        if utilities.get("hazmat_status") != "NORMAL":
+            recs.append({
+                "prioridade": "CRÍTICA",
+                "setor": f"EMERGÊNCIA QUÍMICA / HAZMAT AGROINDUSTRIAL ({utilities.get('vitimas_hazmat_ativas')} Vítimas Ativas)",
+                "acao": "Risco de contaminação secundária da equipe do Pronto-Socorro por vapores tóxicos (Amônia Anidra / Organofosforados).",
+                "detalhe": "Acionar Protocolo #15 (PRISM Decon): bloquear entrada direta no PS, montar Tenda Externa de Descontaminação (Regra dos 15 min) e infundir Atropina em altas doses."
+            })
+        if utilities.get("evacuacao_ala_status") != "NORMAL":
+            recs.append({
+                "prioridade": "CRÍTICA",
+                "setor": f"EVACUAÇÃO HORIZONTAL DE EMERGÊNCIA ({utilities.get('ala_evacuada')})",
+                "acao": "Incêndio / fumaça tóxica / alagamento exigiu evacuação imediata de leitos com pacientes acamados e intubados.",
+                "detalhe": "Acionar Protocolo #16 (Matriz TRAIN Stanford): fechar portas corta-fogo, evacuar horizontalmente para setor adjacente e acionar exaustão/manutenção predial."
+            })
+        if utilities.get("sobrecarga_materno_neonatal_status") != "NORMAL":
+            recs.append({
+                "prioridade": "CRÍTICA",
+                "setor": f"COLAPSO MATERNO-NEONATAL ({utilities.get('rn_ventilacao_bloco_obstetrico')} RNs Prematuros Retidos no CO)",
+                "acao": "UTI Neonatal (20/20) em 100% de lotação com recém-nascidos extremos ventilados em incubadoras de transporte no Centro Obstétrico.",
+                "detalhe": "Acionar Protocolo #16 (Coorte Neonatal Intermediária / TRAIN): converter enfermaria da Maternidade (MAT-OBST) em Unidade de Cuidado Intermediário Canguru (UCINCo) para RNs estáveis de ganho ponderal, abrindo vagas imediatas na UTI-NEO."
+            })
 
     if surgical_center["status_fluxo"] == "BLOQUEIO_CADEIA_CC_UTI_ENF":
         recs.append({
@@ -1090,18 +1189,233 @@ def executar_plano_mitigacao_contingencia():
             observacao_cc = 'Fluxo cirúrgico-intensivo desbloqueado via giro de leitos (Enfermaria -> UTI -> SRPA).'
         WHERE id = 1
     """)
-    cur.execute("UPDATE sectors SET ventiladores_inoperantes = 0, monitores_inoperantes = 0")
+    cur.execute("UPDATE sectors SET ventiladores_inoperantes = 0, monitores_inoperantes = 0, leitos_bloqueados = 0")
     cur.execute("UPDATE pharmacy_inventory SET status_estoque = 'NORMAL', autonomia_horas = 120")
+    cur.execute("""
+        UPDATE critical_utilities_state
+        SET o2_rede_status = 'NORMAL', o2_pressao_kgf = 4.8, o2_autonomia_horas = 96,
+            agua_hemodialise_status = 'NORMAL', pacientes_dialise_retidos = 0, agua_autonomia_horas = 96,
+            hemoterapia_status = 'NORMAL', bolsas_o_neg_disponiveis = 28,
+            cme_autoclaves_status = 'NORMAL', caixas_cirurgicas_estereis_pct = 100,
+            hazmat_status = 'NORMAL', vitimas_hazmat_ativas = 0,
+            evacuacao_ala_status = 'NORMAL', ala_evacuada = 'Nenhuma',
+            sobrecarga_materno_neonatal_status = 'NORMAL', rn_ventilacao_bloco_obstetrico = 0,
+            observacao_utilidades = 'Gases medicinais (Tanque VIE 4,8 kgf/cm²), Osmose Reversa/Hemodiálise, Agência Transfusional, CME e rotas de segurança 100% operacionais (Autonomia >= 96h).'
+        WHERE id = 1
+    """)
 
     resumo = (
         f"Plano de Resposta Executado: {total_altas_realizadas} altas seguras efetivadas (Fast-Track), "
         f"{transferidos_ps} pacientes transferidos do Pronto-Socorro, desbloqueio do fluxo Cirúrgico/UTI/Enfermaria, "
-        f"recomposição de monitores/ventiladores, escala crítica de RH, estoque farmacêutico, cluster de TI e energia."
+        f"recomposição de monitores/ventiladores, escala crítica de RH, estoque farmacêutico, cluster de TI, energia e infraestrutura vital (O2/Água/Sangue/CME/HazMat)."
     )
     cur.execute("""
         INSERT INTO contingency_events (tipo, titulo, severidade, descricao, impacto_json, criado_em, ativo)
         VALUES ('MITIGACAO', 'Acionamento do Plano Integrado de Contingência HRO', 'NORMAL', ?, ?, ?, 1)
     """, (resumo, json.dumps({"altas": total_altas_realizadas, "transferidos_ps": transferidos_ps}), agora.strftime("%d/%m/%Y %H:%M:%S")))
+
+    conn.commit()
+    conn.close()
+    atualizar_atrasos_e_rupturas_prescricao()
+    return calcular_painel_gemeo_digital()
+
+
+def simular_cenario_ponto_cego(cenario: str):
+    """
+    Simula os 7 Novos Cenários de Crise (Pontos Cegos Hospitalares):
+    1. CRISE_O2_VIE: Queda de pressão da rede de Oxigênio / Congelamento do Tanque VIE
+    2. PANE_HEMODIALISE_AGUA: Contaminação da Osmose Reversa / Falta de Água na Hemodiálise
+    3. COLAPSO_HEMOTERAPIA_SANGUE: Esgotamento de Sangue O Negativo (Múltiplos MTPs)
+    4. PANE_CME_AUTOCLAVES: Pane Total da CME (Inundação / Queima de Autoclaves)
+    5. DESASTRE_HAZMAT_AMONIA: Acidente Agroindustrial HazMat (Amônia Anidra / Organofosforados)
+    6. INCENDIO_EVACUACAO_HORIZONTAL: Incêndio / Fumaça Tóxica com Evacuação Horizontal de UTI/Enfermaria
+    7. SURTO_MATERNO_NEONATAL: Surto de Partos Prematuros Extremos + Colapso da UTI Neonatal (20 leitos)
+    """
+    conn = get_connection()
+    cur = conn.cursor()
+    agora = datetime.now()
+
+    if cenario == "NORMALIZAR_PONTOS_CEGOS":
+        cur.execute("""
+            UPDATE critical_utilities_state
+            SET o2_rede_status = 'NORMAL', o2_pressao_kgf = 4.8, o2_autonomia_horas = 96,
+                agua_hemodialise_status = 'NORMAL', pacientes_dialise_retidos = 0, agua_autonomia_horas = 96,
+                hemoterapia_status = 'NORMAL', bolsas_o_neg_disponiveis = 28,
+                cme_autoclaves_status = 'NORMAL', caixas_cirurgicas_estereis_pct = 100,
+                hazmat_status = 'NORMAL', vitimas_hazmat_ativas = 0,
+                evacuacao_ala_status = 'NORMAL', ala_evacuada = 'Nenhuma',
+                sobrecarga_materno_neonatal_status = 'NORMAL', rn_ventilacao_bloco_obstetrico = 0,
+                observacao_utilidades = 'Gases medicinais (Tanque VIE 4,8 kgf/cm²), Osmose Reversa/Hemodiálise, Agência Transfusional, CME e rotas de segurança 100% operacionais (Autonomia >= 96h).'
+            WHERE id = 1
+        """)
+        cur.execute("UPDATE sectors SET leitos_bloqueados = 0 WHERE codigo IN ('UTI-AD', 'CLIN-MED', 'UTI-NEO')")
+        titulo = "Normalização de Infraestrutura Vital e Pontos Cegos Hospitalares"
+        obs = "Tanque VIE de Oxigênio (4,8 kgf/cm²), Osmose Reversa da Hemodiálise, Estoque O- da Hemoterapia, Autoclaves da CME, Pronto-Socorro e UTI Neonatal 100% normalizados."
+        sev = "NORMAL"
+
+    elif cenario == "CRISE_O2_VIE":
+        # Congelamento do vaporizador do tanque VIE + queda de pressão para 2.6 kgf/cm² e autonomia de 9h
+        obs = (
+            "🫧 CRISE DE GASES MEDICINAIS (PONTO CEGO #1): Surto de consumo por ventilação mecânica + CNAFO causou "
+            "CONGELAMENTO DOS VAPORIZADORES DO TANQUE VIE DE OXIGÊNIO LÍQUIDO! Pressão de linha caiu para 2,6 kgf/cm² "
+            "(limiar de alarme de parada de ventiladores pneumáticos em UTI-AD, UTI-PED, UTI-NEO e SRPA). Autonomia crítica: 9h."
+        )
+        cur.execute("""
+            UPDATE critical_utilities_state
+            SET o2_rede_status = 'QUEDA_PRESSAO_CONGELAMENTO_VIE',
+                o2_pressao_kgf = 2.6,
+                o2_autonomia_horas = 9,
+                observacao_utilidades = ?
+            WHERE id = 1
+        """, (obs,))
+        cur.execute("UPDATE power_grid_state SET usina_oxigenio_status = 'QUEDA_PRESSAO_VIE_2.6KGF' WHERE id = 1")
+        titulo = "Crise de Oxigênio: Congelamento do Tanque VIE e Queda de Pressão (2,6 kgf/cm²)"
+        sev = "CRITICO"
+
+    elif cenario == "PANE_HEMODIALISE_AGUA":
+        # Falha/Contaminação da Osmose Reversa + 18 pacientes renais agudos/crônicos retidos com risco de hipercalemia
+        obs = (
+            "💧 PANE DE OSMOSE REVERSA & HEMODIÁLISE (PONTO CEGO #2): Contaminação microbiológica/endotoxinas e queda de "
+            "abastecimento hídrico interromperam a Central de Água Tratada da Hemodiálise! 18 pacientes renais agudos (IRA em UTI-AD) "
+            "e crônicos em urgência dialítica estão retidos sob risco iminente de Hipercalemia Letal (K+ > 6,5 mEq/L) e Edema Agudo de Pulmão."
+        )
+        cur.execute("""
+            UPDATE critical_utilities_state
+            SET agua_hemodialise_status = 'FALHA_OSMOSE_REVERSA',
+                pacientes_dialise_retidos = 18,
+                agua_autonomia_horas = 14,
+                observacao_utilidades = ?
+            WHERE id = 1
+        """, (obs,))
+        cur.execute("UPDATE pharmacy_inventory SET status_estoque = 'CRITICO_12H', autonomia_horas = 10 WHERE termo_chave = 'Gluconato de Cálcio'")
+        titulo = "Pane de Osmose Reversa / Falta de Água na Hemodiálise (18 Pacientes em Risco de Hipercalemia)"
+        sev = "CRITICO"
+
+    elif cenario == "COLAPSO_HEMOTERAPIA_SANGUE":
+        # 3 Protocolos de Transfusão Maciça simultâneos esgotam bolsas O- (restam apenas 2 bolsas)
+        obs = (
+            "🩸 COLAPSO DA AGÊNCIA TRANSFUSIONAL (PONTO CEGO #3): Acionamento simultâneo de 3 Protocolos de Transfusão Maciça (MTP) "
+            "(2 politraumas graves da BR-282 + 1 hemorragia pós-parto grave na Maternidade) esgotou o estoque de hemácias O Negativo "
+            "(restam apenas 2 bolsas O- e 1 pool de plaquetas)! Cirurgias de grande porte e urgências hemorrágicas em risco."
+        )
+        cur.execute("""
+            UPDATE critical_utilities_state
+            SET hemoterapia_status = 'ESCASSEZ_CRITICA_O_NEG',
+                bolsas_o_neg_disponiveis = 2,
+                observacao_utilidades = ?
+            WHERE id = 1
+        """, (obs,))
+        cur.execute("UPDATE pharmacy_inventory SET status_estoque = 'CRITICO_12H', autonomia_horas = 8 WHERE termo_chave = 'Ácido Tranexâmico'")
+        titulo = "Colapso Hemoterápico: Esgotamento de Sangue O- (Apenas 2 Bolsas Disponíveis)"
+        sev = "CRITICO"
+
+    elif cenario == "PANE_CME_AUTOCLAVES":
+        # Queima/Inundação das autoclaves de barreira da CME -> apenas 18% de caixas cirúrgicas estéreis disponíveis
+        obs = (
+            "♨️ PANE TOTAL DA CME / AUTOCLAVES INOPERANTES (PONTO CEGO #4): Rompimento de tubulação de vapor e falha das "
+            "autoclaves de barreira paralisaram a Central de Material e Esterilização (CME)! Estoque de caixas cirúrgicas estéreis "
+            "caiu para 18%, travando cirurgias de trauma, cesáreas de urgência e pacotes de acesso venoso central das UTIs."
+        )
+        cur.execute("""
+            UPDATE critical_utilities_state
+            SET cme_autoclaves_status = 'FALHA_TOTAL_AUTOCLAVES',
+                caixas_cirurgicas_estereis_pct = 18,
+                observacao_utilidades = ?
+            WHERE id = 1
+        """, (obs,))
+        cur.execute("UPDATE surgical_center_state SET cirurgias_eletivas_suspensas = MAX(cirurgias_eletivas_suspensas, 14) WHERE id = 1")
+        titulo = "Pane Total da CME / Autoclaves Inoperantes (Apenas 18% de Kits Estéreis)"
+        sev = "CRITICO"
+
+    elif cenario == "DESASTRE_HAZMAT_AMONIA":
+        # Vazamento de Amônia Anidra / Organofosforado em frigorífico agroindustrial de Chapecó (+14 vítimas contaminadas no PS)
+        cur.execute("SELECT id, ocupados_atual, ventiladores_em_uso, ventiladores_total FROM sectors WHERE codigo = 'PS-EMERG'")
+        ps = cur.fetchone()
+        if ps:
+            novo_ps = ps["ocupados_atual"] + 14
+            novo_vm = min(ps["ventiladores_total"], ps["ventiladores_em_uso"] + 5)
+            cur.execute("UPDATE sectors SET ocupados_atual = ?, ventiladores_em_uso = ? WHERE id = ?", (novo_ps, novo_vm, ps["id"]))
+            sincronizar_pacientes_setor(cur, ps["id"], novo_ps, agora)
+        cur.execute("UPDATE pharmacy_inventory SET status_estoque = 'FALTA_TOTAL', autonomia_horas = 0 WHERE termo_chave = 'Atropina'")
+        obs = (
+            "☣️ EMERGÊNCIA QUÍMICA AGROINDUSTRIAL / HAZMAT (PONTO CEGO #5): Vazamento de Amônia Anidra e Intoxicação por "
+            "Organofosforados em planta agroindustrial do Oeste! Chegada súbita de +14 vítimas não descontaminadas ao Pronto-Socorro, "
+            "com broncoespasmo grave, crise colinérgica, risco de contaminação secundária da equipe do PS e ruptura de Atropina EV."
+        )
+        cur.execute("""
+            UPDATE critical_utilities_state
+            SET hazmat_status = 'CONTAMINACAO_QUIMICA_ATIVA',
+                vitimas_hazmat_ativas = 14,
+                observacao_utilidades = ?
+            WHERE id = 1
+        """, (obs,))
+        titulo = "Desastre Químico Agroindustrial (HazMat: Amônia/Organofosforados — +14 Vítimas)"
+        sev = "CRITICO"
+
+    elif cenario == "INCENDIO_EVACUACAO_HORIZONTAL":
+        # Curto-circuito / Fumaça tóxica na UTI Adulto exigindo evacuação horizontal imediata de 10 pacientes intubados para SRPA/CLIN-CIR
+        cur.execute("UPDATE sectors SET leitos_bloqueados = 10 WHERE codigo = 'UTI-AD'")
+        cur.execute("SELECT id, ocupados_atual FROM sectors WHERE codigo = 'CC-SRPA'")
+        srpa = cur.fetchone()
+        if srpa:
+            novo_srpa = min(22, srpa["ocupados_atual"] + 6)
+            cur.execute("UPDATE sectors SET ocupados_atual = ?, ventiladores_em_uso = MIN(ventiladores_total, ventiladores_em_uso + 5) WHERE id = ?", (novo_srpa, srpa["id"]))
+            sincronizar_pacientes_setor(cur, srpa["id"], novo_srpa, agora)
+        obs = (
+            "🔥 INCÊNDIO / FUMAÇA TÓXICA E EVACUAÇÃO HORIZONTAL (PONTO CEGO #6): Principio de incêndio em painel elétrico/HVAC "
+            "com fumaça na Ala B da UTI Adulto exigiu bloqueio imediato de 10 leitos de UTI e evacuação horizontal de emergência "
+            "de pacientes intubados em VM e drogas vasoativas para os 18 leitos da SRPA, mantendo os 340 leitos fixos instalados."
+        )
+        cur.execute("""
+            UPDATE critical_utilities_state
+            SET evacuacao_ala_status = 'EVACUACAO_HORIZONTAL_ATIVA',
+                ala_evacuada = 'UTI Adulto (Ala B - 10 Leitos Bloqueados por Fumaça)',
+                observacao_utilidades = ?
+            WHERE id = 1
+        """, (obs,))
+        titulo = "Evacuação Horizontal de Emergência por Fumaça Tóxica (10 Leitos UTI-AD Bloqueados)"
+        sev = "CRITICO"
+
+    elif cenario == "SURTO_MATERNO_NEONATAL":
+        # UTI Neonatal 20/20 + Maternidade 38/35 + 4 RNs prematuros extremos intubados no Bloco Obstétrico sem vaga na UTI-NEO
+        cur.execute("SELECT id FROM sectors WHERE codigo = 'UTI-NEO'")
+        neo = cur.fetchone()
+        if neo:
+            cur.execute("UPDATE sectors SET ocupados_atual = 20, ventiladores_em_uso = 15, monitores_em_uso = 20 WHERE id = ?", (neo["id"],))
+            sincronizar_pacientes_setor(cur, neo["id"], 20, agora)
+        cur.execute("SELECT id FROM sectors WHERE codigo = 'MAT-OBST'")
+        mat = cur.fetchone()
+        if mat:
+            cur.execute("UPDATE sectors SET ocupados_atual = 38, ventiladores_em_uso = 4 WHERE id = ?", (mat["id"],))
+            sincronizar_pacientes_setor(cur, mat["id"], 38, agora)
+        obs = (
+            "👶 COLAPSO MATERNO-NEONATAL (PONTO CEGO #7): Surto simultâneo de partos prematuros extremos e gestações de alto risco! "
+            "UTI Neonatal atingiu 100% de ocupação (20/20 leitos fixos), Maternidade em 108,6% (38/35 leitos) e há 4 Recém-Nascidos "
+            "extremos intubados em incubadoras de transporte no Centro Obstétrico sem vaga de UTI Neonatal."
+        )
+        cur.execute("""
+            UPDATE critical_utilities_state
+            SET sobrecarga_materno_neonatal_status = 'SATURACAO_UTI_NEO_CO',
+                rn_ventilacao_bloco_obstetrico = 4,
+                observacao_utilidades = ?
+            WHERE id = 1
+        """, (obs,))
+        titulo = "Colapso Materno-Neonatal: UTI-NEO 20/20 + 4 RNs Intubados Retidos no Centro Obstétrico"
+        sev = "CRITICO"
+    else:
+        conn.close()
+        return calcular_painel_gemeo_digital()
+
+    cur.execute("""
+        INSERT INTO contingency_events (tipo, titulo, severidade, descricao, impacto_json, criado_em, ativo)
+        VALUES ('CRISE_PONTO_CEGO', ?, ?, ?, ?, ?, 1)
+    """, (
+        titulo,
+        sev,
+        obs,
+        json.dumps({"cenario": cenario}),
+        agora.strftime("%d/%m/%Y %H:%M:%S")
+    ))
 
     conn.commit()
     conn.close()
@@ -1498,13 +1812,20 @@ def gerar_brainstorm_evidencias_hro(
     tot_deficit_mon,
     deficit_rh_total,
     risco_global,
+    utilities=None,
 ):
     """
     Gera o Brainstorm Estratégico Baseado em Evidências Científicas calibrado em tempo real
-    para o perfil do Hospital Regional do Oeste (340 leitos fixos + PS Apoio + 18 leitos SRPA).
+    para o perfil do Hospital Regional do Oeste (340 leitos fixos + PS Apoio + 18 leitos SRPA),
+    incluindo todos os 16 protocolos da literatura internacional e o Monitor de Autossuficiência de 96h.
     """
+    if utilities is None:
+        utilities = {}
+
     mapa_sec = {s["codigo"]: s for s in setores_analisados}
     uti_ad = mapa_sec.get("UTI-AD", {})
+    uti_neo = mapa_sec.get("UTI-NEO", {})
+    mat_obst = mapa_sec.get("MAT-OBST", {})
     clin_cir = mapa_sec.get("CLIN-CIR", {})
     clin_med = mapa_sec.get("CLIN-MED", {})
     ps_emerg = mapa_sec.get("PS-EMERG", {})
@@ -1517,12 +1838,21 @@ def gerar_brainstorm_evidencias_hro(
     blackout = power.get("rede_externa") == "QUEDA_INDETERMINADA"
     queda_ti = it_system.get("status_sistema") == "QUEDA_INDETERMINADA"
 
-    if risco_global >= 75 or blackout or queda_ti or bloqueio_cc or tot_deficit_vent > 0:
+    crise_o2 = utilities.get("o2_rede_status", "NORMAL") != "NORMAL"
+    crise_agua = utilities.get("agua_hemodialise_status", "NORMAL") != "NORMAL"
+    crise_sangue = utilities.get("hemoterapia_status", "NORMAL") != "NORMAL"
+    crise_cme = utilities.get("cme_autoclaves_status", "NORMAL") != "NORMAL"
+    crise_hazmat = utilities.get("hazmat_status", "NORMAL") != "NORMAL"
+    crise_evac = utilities.get("evacuacao_ala_status", "NORMAL") != "NORMAL"
+    crise_materno = utilities.get("sobrecarga_materno_neonatal_status", "NORMAL") != "NORMAL"
+    qualquer_ponto_cego = any([crise_o2, crise_agua, crise_sangue, crise_cme, crise_hazmat, crise_evac, crise_materno])
+
+    if risco_global >= 75 or blackout or queda_ti or bloqueio_cc or tot_deficit_vent > 0 or qualquer_ponto_cego:
         estagio_csc = "FASE 3 — CRISIS CARE (Padrão de Crise / Salvamento de Vidas)"
         cor_csc = "CRITICO"
         desc_csc = (
-            "Capacidade convencional e de contingência ultrapassadas (NAM/IOM Crisis Standards of Care). "
-            "Exige intervenção imediata de comando unificado (HICS), suspensão de eletivas leito-dependentes e realocação extraordinária."
+            "Capacidade convencional e de contingência ultrapassadas (NAM/IOM Crisis Standards of Care & Joint Commission EM.12.02.11). "
+            "Exige intervenção imediata de comando unificado (HICS), proteção de linhas vitais (O2, Água, Sangue, CME) e realocação extraordinária."
         )
     elif risco_global >= 48 or taxa_ocupacao_fixos >= 90 or ps_superlotado or tot_deficit_mon > 0 or len(meds_em_falta) > 0:
         estagio_csc = "FASE 2 — CONTINGENCY CARE (Capacidade de Contingência Equivalente)"
@@ -1535,17 +1865,73 @@ def gerar_brainstorm_evidencias_hro(
         estagio_csc = "FASE 1 — CONVENTIONAL CARE (Capacidade Convencional Estável)"
         cor_csc = "NORMAL"
         desc_csc = (
-            "Os 340 leitos fixos, 18 leitos de SRPA e leitos de apoio do PS operam dentro da margem de segurança assistencial."
+            "Os 340 leitos fixos, 18 leitos de SRPA, leitos de apoio do PS e todas as utilidades críticas (O2, Hemodiálise, Sangue e CME) operam com autonomia >= 96h."
         )
+
+    # Monitor de Autossuficiência de 96 Horas (The Joint Commission EM.12.02.11)
+    o2_horas = utilities.get("o2_autonomia_horas", 96)
+    agua_horas = utilities.get("agua_autonomia_horas", 96)
+    diesel_horas = 12 if blackout else 96
+    sangue_bolsas = utilities.get("bolsas_o_neg_disponiveis", 28)
+    sangue_horas = 6 if crise_sangue else 96
+    cme_pct = utilities.get("caixas_cirurgicas_estereis_pct", 100)
+    cme_horas = 8 if crise_cme else 96
+    farmacia_horas = 8 if len(meds_em_falta) > 0 else 96
+
+    monitor_96h = [
+        {
+            "insumo": "Oxigênio Líquido (Tanque VIE)",
+            "autonomia_h": o2_horas,
+            "meta_h": 96,
+            "detalhe": f"Pressão: {utilities.get('o2_pressao_kgf', 4.8)} kgf/cm² ({utilities.get('o2_rede_status', 'NORMAL')})",
+            "status": "CRITICO" if o2_horas < 24 else ("ALERTA" if o2_horas < 72 else "NORMAL"),
+        },
+        {
+            "insumo": "Água Tratada & Osmose Reversa (Diálise)",
+            "autonomia_h": agua_horas,
+            "meta_h": 96,
+            "detalhe": f"Status: {utilities.get('agua_hemodialise_status', 'NORMAL')} ({utilities.get('pacientes_dialise_retidos', 0)} retidos)",
+            "status": "CRITICO" if agua_horas < 24 else ("ALERTA" if agua_horas < 72 else "NORMAL"),
+        },
+        {
+            "insumo": "Energia / Diesel de Geradores & Baterias",
+            "autonomia_h": diesel_horas,
+            "meta_h": 96,
+            "detalhe": f"Rede: {power.get('rede_externa')} | Geradores: {power.get('status_geradores')}",
+            "status": "CRITICO" if blackout else "NORMAL",
+        },
+        {
+            "insumo": "Hemoterapia (Estoque Sangue O Negativo)",
+            "autonomia_h": sangue_horas,
+            "meta_h": 96,
+            "detalhe": f"{sangue_bolsas} bolsas O- disponíveis para Transfusão Maciça (MTP)",
+            "status": "CRITICO" if sangue_bolsas <= 6 else ("ALERTA" if sangue_bolsas <= 14 else "NORMAL"),
+        },
+        {
+            "insumo": "CME & Esterilização (Caixas Cirúrgicas)",
+            "autonomia_h": cme_horas,
+            "meta_h": 96,
+            "detalhe": f"{cme_pct}% dos kits estéreis prontos ({utilities.get('cme_autoclaves_status', 'NORMAL')})",
+            "status": "CRITICO" if cme_pct < 40 else ("ALERTA" if cme_pct < 75 else "NORMAL"),
+        },
+        {
+            "insumo": "Farmácia Crítica (DVA, Sedação & Antídotos)",
+            "autonomia_h": farmacia_horas,
+            "meta_h": 96,
+            "detalhe": f"{len(meds_em_falta)} item(ns) em ruptura / {pac_afetados_med} prescrições impactadas",
+            "status": "CRITICO" if len(meds_em_falta) > 0 else "NORMAL",
+        },
+    ]
 
     matriz_4s = [
         {
             "pilar": "SPACE (Espaço Físico & Leitos)",
             "status_hro": f"{fixos_ocupados}/{fixos_instalados} Fixos ({taxa_ocupacao_fixos}%) • PS Apoio: {ps_apoio_ocupados} • SRPA: {srpa_ocupados}/18",
             "diagnostico": (
-                f"Enfermarias com {leitos_livres_enfermarias} vaga(s) livre(s); {total_altas_seguras} paciente(s) elegíveis para alta segura."
+                f"Enfermarias com {leitos_livres_enfermarias} vaga(s) livre(s); {total_altas_seguras} paciente(s) elegíveis para alta segura. "
+                f"Evacuação: {utilities.get('ala_evacuada', 'Nenhuma')}."
             ),
-            "diretriz_literatura": "Full Capacity Protocol (Viccellio) + Reverse Triage (Kelen/Johns Hopkins) + Discharge Lounge (Lean PROADI-SUS)."
+            "diretriz_literatura": "Full Capacity Protocol (Viccellio) + Reverse Triage (Kelen) + Discharge Lounge + Matriz TRAIN Stanford (Evacuação/NICU)."
         },
         {
             "pilar": "STAFF (Equipe Multiprofissional)",
@@ -1554,16 +1940,22 @@ def gerar_brainstorm_evidencias_hro(
             "diretriz_literatura": "Functional/Team Nursing (NAM/CHEST): Enfermagem modular supervisionada + remanejamento de ambulatórios eletivos."
         },
         {
-            "pilar": "STUFF (Equipamentos & Insumos)",
-            "status_hro": f"Déficit VM: -{tot_deficit_vent} • Déficit Monitores: -{tot_deficit_mon} • Farmácia: {len(meds_em_falta)} em falta",
-            "diagnostico": "Risco de retenção em sala cirúrgica e atraso de terapia antimicrobiana/vasoativa.",
-            "diretriz_literatura": "Step-down de Monitores guiado por NEWS2 < 3 + Mobilização de Aparelhos de Anestesia + Substituição Automática ASHP."
+            "pilar": "STUFF (Equipamentos, Gases, Sangue & CME)",
+            "status_hro": (
+                f"Déficit VM: -{tot_deficit_vent} • Mon: -{tot_deficit_mon} • O2: {utilities.get('o2_pressao_kgf', 4.8)} kgf • "
+                f"O-: {sangue_bolsas} un • CME: {cme_pct}%"
+            ),
+            "diagnostico": "Monitoramento contínuo de equipamentos de suporte à vida, pressão do tanque VIE, hemoderivados e kits cirúrgicos.",
+            "diretriz_literatura": "Step-down NEWS2 < 3 + Consenso CHEST VM + Regra 96h Joint Commission + AABB Blood Conservation + AAMI ST79 CME."
         },
         {
-            "pilar": "SYSTEM (Governança, TI & Energia)",
-            "status_hro": f"TI: {it_system.get('status_sistema')} • Energia: {power.get('rede_externa')} ({power.get('status_geradores')})",
-            "diagnostico": "Necessidade de Huddle Diário do NIR e redundância operacional para infraestrutura crítica.",
-            "diretriz_literatura": "Hospital Incident Command System (HICS) + ONC SAFER Guides (EHR Downtime) + NFPA 99 / OMS Safety Index."
+            "pilar": "SYSTEM (Governança, TI, Energia, Água & HazMat)",
+            "status_hro": (
+                f"TI: {it_system.get('status_sistema')} • Energia: {power.get('rede_externa')} • "
+                f"Diálise: {utilities.get('agua_hemodialise_status', 'NORMAL')} • HazMat: {utilities.get('hazmat_status', 'NORMAL')}"
+            ),
+            "diagnostico": "Integração entre NIR, Engenharia Clínica, TI, Nefrologia e Descontaminação Química Externa.",
+            "diretriz_literatura": "HICS + ONC SAFER Guides + NFPA 99 + CDC EWSP (Hemodiálise) + Protocolo PRISM (Descontaminação Agroindustrial)."
         },
     ]
 
@@ -1724,6 +2116,114 @@ def gerar_brainstorm_evidencias_hro(
             ),
             "impacto_esperado": "Recompõe o dimensionamento assistencial em todos os setores críticos e reduz o atraso de aprazamento no PEP para < 5 min."
         },
+        {
+            "codigo": "TJC_96H_SUSTAINABILITY_O2",
+            "categoria": "Ponto Cego #1 — Gases Medicinais & Regra de 96h",
+            "titulo": "11. Regra de Sustentabilidade de 96h (Joint Commission) & Descongelamento/Conservação do Tanque VIE de O2",
+            "referencia_cientifica": "The Joint Commission EM.12.02.11 (96-Hour Plan) • NFPA 99 Piped Medical Gas • WHO Oxygen Surge Guidance",
+            "nivel_evidencia": "Nível A — Prevenção de colapso simultâneo de ventiladores por queda de pressão de O2",
+            "status_recomendacao": "CRITICO_ACIONAR_AGORA" if crise_o2 else "DISPONIVEL_PREVENTIVO",
+            "gatilho_hro": (
+                f"Tanque VIE em status '{utilities.get('o2_rede_status', 'NORMAL')}' | "
+                f"Pressão de linha: {utilities.get('o2_pressao_kgf', 4.8)} kgf/cm² | Autonomia: {utilities.get('o2_autonomia_horas', 96)}h."
+            ),
+            "decisao_estrategica": (
+                "1) Chaveia imediatamente os vaporizadores primários congelados do tanque VIE para a bancada secundária e ativa o manifold reserva de cilindros; "
+                "2) Reduz a meta de SpO2 institucional de 98% para 90–92% (92–96% em gestantes), economizando até 40% de fluxo; "
+                "3) Substitui Cânula Nasal de Alto Fluxo (CNAFO 60 L/min) por VNI em circuito fechado e reabastece autonomia para 96h."
+            ),
+            "impacto_esperado": "Restaura a pressão da rede de O2 para 4,8 kgf/cm², evita parada dos ventiladores das UTIs e recompõe autonomia de 96h."
+        },
+        {
+            "codigo": "CDC_EWSP_HEMODIALISE",
+            "categoria": "Ponto Cego #2 — Água & Osmose Reversa (Hemodiálise)",
+            "titulo": "12. Plano de Emergência Hídrica Hospitalar (CDC/EPA EWSP) & Contingência Renal Anti-Hipercalemia",
+            "referencia_cientifica": "CDC / EPA Emergency Water Supply Planning Guide for Hospitals (EWSP) • KDIGO Disaster Nephrology",
+            "nivel_evidencia": "Nível A — Prevenção de óbito por hipercalemia e choque pirogênico em pane de osmose",
+            "status_recomendacao": "CRITICO_ACIONAR_AGORA" if crise_agua else "DISPONIVEL_PREVENTIVO",
+            "gatilho_hro": (
+                f"Osmose Reversa: '{utilities.get('agua_hemodialise_status', 'NORMAL')}' | "
+                f"{utilities.get('pacientes_dialise_retidos', 0)} pacientes renais retidos sem diálise | Autonomia hídrica: {utilities.get('agua_autonomia_horas', 96)}h."
+            ),
+            "decisao_estrategica": (
+                "1) Administra imediatamente Kit Anti-Hipercalemia (Gluconato de Cálcio 10% + Solução Polarizante + Poliestirenossulfonato + restrição hídrica/potássio) nos 18 pacientes retidos; "
+                "2) Acopla caminhão-pipa certificado com cloração de choque (0,5 mg/L) e cartuchos reservas de Osmose Reversa Portátil à UTI Adulto; "
+                "3) Transfere pacientes crônicos estáveis para turno noturno em clínicas renais satélites."
+            ),
+            "impacto_esperado": "Normaliza a Osmose Reversa da Hemodiálise, zera os 18 pacientes renais retidos e recompõe o estoque de Gluconato de Cálcio."
+        },
+        {
+            "codigo": "AABB_BLOOD_CONSERVATION",
+            "categoria": "Ponto Cego #3 — Agência Transfusional & Sangue O-",
+            "titulo": "13. Protocolo AABB de Conservação Escalonada de Sangue (MTP) & Ácido Tranexâmico Precoce",
+            "referencia_cientifica": "AABB Disaster Operations Handbook • CRASH-2 / WOMAN Trials (Lancet — Tranexamic Acid) • Patient Blood Management",
+            "nivel_evidencia": "Nível A — Redução de mortalidade exsanguinante e preservação de estoque O-",
+            "status_recomendacao": "CRITICO_ACIONAR_AGORA" if crise_sangue else "DISPONIVEL_PREVENTIVO",
+            "gatilho_hro": (
+                f"Agência Transfusional: '{utilities.get('hemoterapia_status', 'NORMAL')}' | "
+                f"Apenas {utilities.get('bolsas_o_neg_disponiveis', 28)} bolsa(s) O Negativo disponíveis."
+            ),
+            "decisao_estrategica": (
+                "1) Infunde Ácido Tranexâmico (TXA 1g EV em 10 min) em todos os traumas hemorrágicos e hemorragias pós-parto na 1ª hora; "
+                "2) Adota gatilho transfusional restritivo (Hb < 7,0 g/dL) nas UTIs e enfermarias; "
+                "3) Autoriza transição segura de O+ para homens adultos/mulheres >50 anos em choque exsanguinante e aciona remessa emergencial do HEMOSC."
+            ),
+            "impacto_esperado": "Recompõe o estoque estratégico para 28 bolsas O Negativo, normaliza Ácido Tranexâmico e garante cobertura de trauma/obstetrícia."
+        },
+        {
+            "codigo": "AAMI_CME_CONTINGENCIA",
+            "categoria": "Ponto Cego #4 — Pane da CME & Autoclaves",
+            "titulo": "14. Contingência de Esterilização AAMI ST79 / RDC ANVISA 15 — Kits Deep-Stock & CME Cruzada",
+            "referencia_cientifica": "ANSI/AAMI ST79 Comprehensive Guide to Steam Sterilization • RDC ANVISA nº 15/2012",
+            "nivel_evidencia": "Nível B — Continuidade cirúrgica de urgência sob pane de autoclaves",
+            "status_recomendacao": "CRITICO_ACIONAR_AGORA" if crise_cme else "DISPONIVEL_PREVENTIVO",
+            "gatilho_hro": (
+                f"Status CME: '{utilities.get('cme_autoclaves_status', 'NORMAL')}' | "
+                f"Disponibilidade de caixas cirúrgicas estéreis: {utilities.get('caixas_cirurgicas_estereis_pct', 100)}%."
+            ),
+            "decisao_estrategica": (
+                "1) Abre o arsenal selado de longa duração ('Deep-Stock' em embalagem dupla Tyvek) exclusivo para trauma, laparotomia e cesárea de urgência; "
+                "2) Substitui bandejas metálicas de pequena cirurgia/acesso central por kits descartáveis pré-esterilizados a óxido de etileno; "
+                "3) Ativa rota logística de esterilização cruzada com hospital parceiro regional e restabelece as autoclaves de barreira."
+            ),
+            "impacto_esperado": "Restaura 100% da disponibilidade de caixas cirúrgicas estéreis e reabre a capacidade plena do Centro Cirúrgico."
+        },
+        {
+            "codigo": "PRISM_HAZMAT_DECON",
+            "categoria": "Ponto Cego #5 — Desastre Químico Agroindustrial (HazMat)",
+            "titulo": "15. Protocolo PRISM de Descontaminação Química Externa (Regra dos 15 min) & Estoques de Atropina",
+            "referencia_cientifica": "BARDA / ASPR PRISM Guidance (Primary Response Incident Scene Management) • ATSDR HazMat Medical Management",
+            "nivel_evidencia": "Nível A — Remove até 99% da contaminação cutânea e impede fechamento do Pronto-Socorro",
+            "status_recomendacao": "CRITICO_ACIONAR_AGORA" if crise_hazmat else "DISPONIVEL_PREVENTIVO",
+            "gatilho_hro": (
+                f"Status HazMat: '{utilities.get('hazmat_status', 'NORMAL')}' | "
+                f"{utilities.get('vitimas_hazmat_ativas', 0)} vítimas agroindustriais (Amônia/Organofosforados) no PS."
+            ),
+            "decisao_estrategica": (
+                "1) Bloqueia a porta principal do PS para pacientes não descontaminados e ativa Tenda Externa Pressurizada na rampa de ambulâncias; "
+                "2) Executa 'Disrobe & Dry/Wet Decon' nos primeiros 15 min (remoção de vestes = -90% do tóxico + lavagem aquosa morna); "
+                "3) Mobiliza estoque estratégico regional de Atropina EV em altas doses + Pralidoxima e estabiliza as vítimas sem contaminar a equipe."
+            ),
+            "impacto_esperado": "Elimina o risco de contaminação secundária do PS, recompõe estoque de Atropina e estabiliza/dá alta às vítimas descontaminadas."
+        },
+        {
+            "codigo": "STANFORD_TRAIN_EVAC_NICU",
+            "categoria": "Pontos Cegos #6 e #7 — Evacuação de UTI & Colapso Neonatal",
+            "titulo": "16. Matriz TRAIN (Stanford) de Evacuação Horizontal Crítica & Coorte Materno-Neonatal (UCINCo)",
+            "referencia_cientifica": "Lucile Packard / Stanford TRAIN Triage Matrix • AHRQ Hospital Evacuation Decision Guide • Método Canguru MS",
+            "nivel_evidencia": "Nível A — Evacuação rápida sem perda de suporte vital e desbloqueio imediato de UTI-NEO",
+            "status_recomendacao": "CRITICO_ACIONAR_AGORA" if (crise_evac or crise_materno) else "DISPONIVEL_PREVENTIVO",
+            "gatilho_hro": (
+                f"Evacuação: '{utilities.get('ala_evacuada', 'Nenhuma')}' | "
+                f"UTI-NEO: {uti_neo.get('ocupados_atual', 18)}/20 ({utilities.get('rn_ventilacao_bloco_obstetrico', 0)} RNs retidos no Bloco Obstétrico)."
+            ),
+            "decisao_estrategica": (
+                "1) Classifica pacientes críticos e neonatos pela Matriz TRAIN (Transporte: Verde/Básico, Amarelo/Incubadora O2, Vermelho/VM+DVA); "
+                "2) Na evacuação por fumaça/incêndio, isola compartimento corta-fogo, aciona exaustão e reabre os 10 leitos da UTI Adulto; "
+                "3) No colapso neonatal, converte ala da Maternidade (MAT-OBST) em Unidade Intermediária Canguru (UCINCo) para RNs estáveis de ganho ponderal, abrindo 5 vagas imediatas na UTI-NEO para admitir os prematuros extremos retidos no Centro Obstétrico."
+            ),
+            "impacto_esperado": "Desbloqueia os 10 leitos da UTI-AD, admite todos os RNs prematuros extremos na UTI-NEO (16/20) e preserva os 340 leitos fixos."
+        },
     ]
 
     acionar_agora_count = sum(1 for p in protocolos if p["status_recomendacao"] == "CRITICO_ACIONAR_AGORA")
@@ -1733,6 +2233,7 @@ def gerar_brainstorm_evidencias_hro(
         "cor_csc": cor_csc,
         "descricao_csc": desc_csc,
         "acionar_agora_count": acionar_agora_count,
+        "monitor_96h": monitor_96h,
         "matriz_4s": matriz_4s,
         "protocolos": protocolos,
     }
@@ -1822,7 +2323,6 @@ def aplicar_protocolo_evidencia(codigo_protocolo: str):
         resumo = obs_cc
 
     elif codigo_protocolo == "FULL_CAPACITY_PROTOCOL":
-        # Reduzir 10 pacientes em boarding no PS-EMERG e distribuir +2 nas 5 enfermarias abertas (sem alterar leitos_instalados = 340)
         cur.execute("SELECT id, ocupados_atual FROM sectors WHERE codigo = 'PS-EMERG'")
         ps = cur.fetchone()
         transferidos = 0
@@ -1838,7 +2338,6 @@ def aplicar_protocolo_evidencia(codigo_protocolo: str):
             cur.execute("SELECT id, ocupados_atual, leitos_instalados FROM sectors WHERE codigo = ?", (cod,))
             s = cur.fetchone()
             if s:
-                # Se a ala estiver acima da capacidade instalada, primeiro acomoda dentro do limite + 2 de FCP
                 novo_oc = min(s["leitos_instalados"] + 2, s["ocupados_atual"] + por_ala)
                 cur.execute("UPDATE sectors SET ocupados_atual = ? WHERE id = ?", (novo_oc, s["id"]))
                 sincronizar_pacientes_setor(cur, s["id"], novo_oc, agora)
@@ -1850,7 +2349,6 @@ def aplicar_protocolo_evidencia(codigo_protocolo: str):
         )
 
     elif codigo_protocolo == "REVERSE_TRIAGE_KELEN":
-        # Triagem Reversa de Kelen (Johns Hopkins): alta segura precoce de pacientes NEWS2 <= 2 nas 5 unidades abertas
         alas = ["CLIN-CIR", "CLIN-MED", "ONCO-UNA", "MAT-OBST", "PED-CLIN"]
         total_liberados = 0
         for cod in alas:
@@ -1873,7 +2371,6 @@ def aplicar_protocolo_evidencia(codigo_protocolo: str):
         )
 
     elif codigo_protocolo == "STEPDOWN_MONITORES_NEWS2":
-        # Desacoplar monitores de pacientes estáveis nas enfermarias e zerar monitores inoperantes/déficit
         cur.execute("""
             UPDATE sectors
             SET monitores_inoperantes = 0,
@@ -1967,6 +2464,105 @@ def aplicar_protocolo_evidencia(codigo_protocolo: str):
             "Enfermeiros e técnicos remanejados de setores ambulatoriais/eletivos em modelo de Enfermagem Modular em Time. "
             "Déficit de RH eliminado e atraso de aprazamento medicamentoso normalizado."
         )
+
+    elif codigo_protocolo == "TJC_96H_SUSTAINABILITY_O2":
+        cur.execute("""
+            UPDATE critical_utilities_state
+            SET o2_rede_status = 'NORMAL',
+                o2_pressao_kgf = 4.8,
+                o2_autonomia_horas = 96,
+                observacao_utilidades = '[EVIDÊNCIA APLICADA: JOINT COMMISSION 96H / NFPA 99] Vaporizadores do tanque VIE chaveados para bancada secundária, alvo SpO2 ajustado (90-92%) e pressão de O2 restaurada (4,8 kgf/cm²).'
+            WHERE id = 1
+        """)
+        cur.execute("UPDATE power_grid_state SET usina_oxigenio_status = 'OPERACIONAL' WHERE id = 1")
+        titulo = "Protocolo Baseado em Evidências: Regra 96h Joint Commission & Conservação de O2 VIE"
+        resumo = "Chaveamento de vaporizadores do Tanque VIE executado, meta de SpO2 ajustada para 90-92% e pressão de linha estabilizada em 4,8 kgf/cm² (Autonomia 96h)."
+
+    elif codigo_protocolo == "CDC_EWSP_HEMODIALISE":
+        cur.execute("""
+            UPDATE critical_utilities_state
+            SET agua_hemodialise_status = 'NORMAL',
+                pacientes_dialise_retidos = 0,
+                agua_autonomia_horas = 96,
+                observacao_utilidades = '[EVIDÊNCIA APLICADA: CDC/EPA EWSP HEMODIÁLISE] Caminhão-pipa clorado e osmose reversa portátil acoplados, kit anti-hipercalemia administrado e 18 sessões dialíticas concluídas.'
+            WHERE id = 1
+        """)
+        cur.execute("UPDATE pharmacy_inventory SET status_estoque = 'NORMAL', autonomia_horas = 144 WHERE termo_chave = 'Gluconato de Cálcio'")
+        titulo = "Protocolo Baseado em Evidências: CDC/EPA Emergency Water Supply Plan (Hemodiálise)"
+        resumo = "Osmose reversa portátil e abastecimento hídrico seguro restabelecidos; protocolo anti-hipercalemia aplicado e 18 pacientes renais dialisados com segurança."
+
+    elif codigo_protocolo == "AABB_BLOOD_CONSERVATION":
+        cur.execute("""
+            UPDATE critical_utilities_state
+            SET hemoterapia_status = 'NORMAL',
+                bolsas_o_neg_disponiveis = 28,
+                observacao_utilidades = '[EVIDÊNCIA APLICADA: AABB BLOOD CONSERVATION & TXA] Ácido Tranexâmico 1g EV precoce protocolado, gatilho restritivo Hb < 7 g/dL ativado e estoque O- recomposto via HEMOSC (28 bolsas).'
+            WHERE id = 1
+        """)
+        cur.execute("UPDATE pharmacy_inventory SET status_estoque = 'NORMAL', autonomia_horas = 144 WHERE termo_chave = 'Ácido Tranexâmico'")
+        titulo = "Protocolo Baseado em Evidências: AABB Tiered Blood Conservation & TXA Precoce"
+        resumo = "Ácido Tranexâmico precoce ativado nos protocolos de hemorragia, gatilho transfusional restritivo aplicado e estoque de sangue O Negativo recomposto (28 bolsas)."
+
+    elif codigo_protocolo == "AAMI_CME_CONTINGENCIA":
+        cur.execute("""
+            UPDATE critical_utilities_state
+            SET cme_autoclaves_status = 'NORMAL',
+                caixas_cirurgicas_estereis_pct = 100,
+                observacao_utilidades = '[EVIDÊNCIA APLICADA: AAMI ST79 / RDC 15 CME] Arsenal Deep-Stock liberado, esterilização cruzada inter-hospitalar ativada e autoclaves de barreira restabelecidas (100% kits estéreis).'
+            WHERE id = 1
+        """)
+        cur.execute("UPDATE surgical_center_state SET cirurgias_eletivas_suspensas = 0 WHERE id = 1")
+        titulo = "Protocolo Baseado em Evidências: Contingência da CME (AAMI ST79 / RDC ANVISA 15)"
+        resumo = "Kits cirúrgicos Deep-Stock liberados, convênio de esterilização cruzada acionado e autoclaves da CME reparadas (100% de caixas estéreis disponíveis)."
+
+    elif codigo_protocolo == "PRISM_HAZMAT_DECON":
+        cur.execute("SELECT id, ocupados_atual FROM sectors WHERE codigo = 'PS-EMERG'")
+        ps = cur.fetchone()
+        if ps:
+            novo_ps = max(22, ps["ocupados_atual"] - 12)
+            cur.execute("UPDATE sectors SET ocupados_atual = ? WHERE id = ?", (novo_ps, ps["id"]))
+            sincronizar_pacientes_setor(cur, ps["id"], novo_ps, agora)
+        cur.execute("""
+            UPDATE critical_utilities_state
+            SET hazmat_status = 'NORMAL',
+                vitimas_hazmat_ativas = 0,
+                observacao_utilidades = '[EVIDÊNCIA APLICADA: PROTOCOLO PRISM HAZMAT] Tenda externa de descontaminação acionada (Regra dos 15 min), equipe protegida e vítimas tratadas com Atropina/Pralidoxima.'
+            WHERE id = 1
+        """)
+        cur.execute("UPDATE pharmacy_inventory SET status_estoque = 'NORMAL', autonomia_horas = 144 WHERE termo_chave = 'Atropina'")
+        titulo = "Protocolo Baseado em Evidências: PRISM Chemical Decontamination & Antídotos"
+        resumo = "Tenda externa de descontaminação executada nos primeiros 15 min, contaminação secundária do PS evitada e estoque de Atropina EV recomposto."
+
+    elif codigo_protocolo == "STANFORD_TRAIN_EVAC_NICU":
+        # Desbloquear leitos evacuados da UTI-AD, normalizar SRPA e abrir vagas na UTI-NEO via UCINCo na Maternidade
+        cur.execute("UPDATE sectors SET leitos_bloqueados = 0 WHERE codigo = 'UTI-AD'")
+        cur.execute("SELECT id FROM sectors WHERE codigo = 'UTI-NEO'")
+        neo = cur.fetchone()
+        if neo:
+            cur.execute("UPDATE sectors SET ocupados_atual = 16, ventiladores_em_uso = 11, monitores_em_uso = 16 WHERE id = ?", (neo["id"],))
+            sincronizar_pacientes_setor(cur, neo["id"], 16, agora)
+        cur.execute("SELECT id FROM sectors WHERE codigo = 'MAT-OBST'")
+        mat = cur.fetchone()
+        if mat:
+            cur.execute("UPDATE sectors SET ocupados_atual = 30, ventiladores_em_uso = 0 WHERE id = ?", (mat["id"],))
+            sincronizar_pacientes_setor(cur, mat["id"], 30, agora)
+        cur.execute("SELECT id, ocupados_atual FROM sectors WHERE codigo = 'CC-SRPA'")
+        srpa = cur.fetchone()
+        if srpa and srpa["ocupados_atual"] > 14:
+            cur.execute("UPDATE sectors SET ocupados_atual = 12, ventiladores_em_uso = 2, monitores_em_uso = 12 WHERE id = ?", (srpa["id"],))
+            sincronizar_pacientes_setor(cur, srpa["id"], 12, agora)
+        cur.execute("""
+            UPDATE critical_utilities_state
+            SET evacuacao_ala_status = 'NORMAL',
+                ala_evacuada = 'Nenhuma',
+                sobrecarga_materno_neonatal_status = 'NORMAL',
+                rn_ventilacao_bloco_obstetrico = 0,
+                observacao_utilidades = '[EVIDÊNCIA APLICADA: MATRIZ TRAIN STANFORD & COORTE UCINCo] Evacuação horizontal resolvida (10 leitos UTI-AD reabertos) e RNs prematuros extremos admitidos na UTI-NEO via step-down Canguru.'
+            WHERE id = 1
+        """)
+        titulo = "Protocolo Baseado em Evidências: Matriz TRAIN (Stanford) de Evacuação & Coorte Neonatal"
+        resumo = "Compartimento de UTI-AD descontaminado e reaberto (40 leitos fixos operacionais); RNs estáveis transferidos para cuidado Canguru e 4 prematuros extremos admitidos na UTI-NEO."
+
     else:
         conn.close()
         return executar_plano_mitigacao_contingencia()

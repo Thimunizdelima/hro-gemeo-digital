@@ -15,6 +15,7 @@ from simulation_engine import (
     atualizar_atrasos_e_rupturas_prescricao,
     calcular_painel_gemeo_digital,
     executar_plano_mitigacao_contingencia,
+    simular_cenario_ponto_cego,
     simular_crise_energia_geradores,
     simular_crise_equipamentos,
     simular_falta_medicamento,
@@ -28,8 +29,8 @@ from simulation_engine import (
 
 app = FastAPI(
     title="HRO Gêmeo Digital & Prescrição Eletrônica",
-    description="Plataforma de Simulação de Contingência Hospitalar, Gestão de Leitos, Farmácia, Energia, TI, Centro Cirúrgico e Prescrição Eletrônica",
-    version="2.2.0"
+    description="Plataforma de Simulação de Contingência Hospitalar, Gestão de Leitos, Farmácia, Energia, TI, Centro Cirúrgico, Infraestrutura Vital e Prescrição Eletrônica",
+    version="2.3.0"
 )
 
 if getattr(sys, "frozen", False):
@@ -389,6 +390,15 @@ class ProtocoloEvidenciaRequest(BaseModel):
 @app.post("/api/simulate/evidencia")
 def api_sim_evidencia(req: ProtocoloEvidenciaRequest):
     return aplicar_protocolo_evidencia(req.codigo_protocolo)
+
+
+class PontoCegoRequest(BaseModel):
+    cenario: str
+
+
+@app.post("/api/simulate/ponto-cego")
+def api_sim_ponto_cego(req: PontoCegoRequest):
+    return simular_cenario_ponto_cego(req.cenario)
 
 
 @app.post("/api/simulate/mitigate")
