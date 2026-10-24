@@ -1,0 +1,2101 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>HRO Gêmeo Digital — Contingência Hospitalar & Prescrição Eletrônica</title>
+  <script src="https://cdn.tailwindcss.com"></script>
+  <style>
+    body { font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica, Arial, sans-serif; }
+    @media print {
+      .no-print { display: none !important; }
+      .print-only { display: block !important; }
+    }
+  </style>
+</head>
+<body class="bg-slate-950 text-slate-100 min-h-screen">
+
+  <!-- Top Header -->
+  <header class="bg-slate-900 border-b border-slate-800 sticky top-0 z-30 no-print">
+    <div class="max-w-7xl mx-auto px-4 py-3 flex flex-wrap items-center justify-between gap-4">
+      <div class="flex items-center gap-3">
+        <div class="w-10 h-10 rounded-xl bg-teal-600 flex items-center justify-center font-bold text-lg shadow-lg shadow-teal-900/50">
+          HRO
+        </div>
+        <div>
+          <div class="flex items-center gap-2">
+            <h1 class="font-bold text-lg tracking-tight text-white">Gêmeo Digital Hospitalar & Prescrição Eletrônica</h1>
+            <span class="text-xs px-2 py-0.5 rounded-full bg-teal-950 text-teal-300 border border-teal-800 font-medium">LGPD • 100% Anonimizado</span>
+          </div>
+          <p class="text-xs text-slate-400">Hospital Regional do Oeste (Chapecó/SC) — Efetivo de Ocupação, Farmácia, Energia/Geradores, RH e PEP</p>
+        </div>
+      </div>
+
+      <div class="flex items-center gap-2.5">
+        <div id="badge-contingencia" class="px-3 py-1.5 rounded-lg text-xs font-bold border bg-amber-950/80 text-amber-300 border-amber-700">
+          Carregando status...
+        </div>
+        <button onclick="executarMitigacao()" class="px-3 py-1.5 rounded-lg bg-emerald-600 hover:bg-emerald-500 text-white text-xs font-semibold transition shadow">
+          ⚡ Acionar Resposta de Contingência
+        </button>
+        <button onclick="resetarSimulacao()" class="px-3 py-1.5 rounded-lg bg-slate-800 hover:bg-slate-700 text-slate-300 text-xs font-medium border border-slate-700 transition">
+          ↺ Restaurar Base HRO
+        </button>
+      </div>
+    </div>
+
+    <!-- Navigation Tabs -->
+    <div class="max-w-7xl mx-auto px-4 flex flex-wrap gap-1 border-t border-slate-800/80 pt-1">
+      <button id="tab-btn-twin" onclick="switchTab('twin')" class="px-4 py-2.5 text-sm font-semibold border-b-2 border-teal-400 text-teal-300 transition">
+        🏥 1. Efetivo de Ocupação, Áreas Críticas & RH
+      </button>
+      <button id="tab-btn-sim" onclick="switchTab('sim')" class="px-4 py-2.5 text-sm font-semibold border-b-2 border-transparent text-slate-400 hover:text-slate-200 transition">
+        🚨 2. Sala de Crise (Energia, Farmácia, TI, CC/SRPA & Equipamentos)
+      </button>
+      <button id="tab-btn-evidencias" onclick="switchTab('evidencias')" class="px-4 py-2.5 text-sm font-semibold border-b-2 border-transparent text-slate-400 hover:text-slate-200 transition flex items-center gap-1.5">
+        <span>📚 3. Brainstorm & Decisões Baseadas em Evidências</span>
+        <span id="badge-evidencias-count" class="px-1.5 py-0.5 text-[10px] rounded-full bg-teal-950 text-teal-300 border border-teal-700 font-bold">10 Protocolos</span>
+      </button>
+      <button id="tab-btn-pep" onclick="switchTab('pep')" class="px-4 py-2.5 text-sm font-semibold border-b-2 border-transparent text-slate-400 hover:text-slate-200 transition">
+        💊 4. Prescrição Eletrônica & Prontuário (Anonimizado)
+      </button>
+    </div>
+  </header>
+
+  <!-- Main Container -->
+  <main class="max-w-7xl mx-auto px-4 py-5 space-y-5">
+
+    <!-- Emergency Banner: Surgical Center Gridlock (SRPA 18 Beds + Bed-Dependent Surgeries + Blocked ICU Discharges) -->
+    <div id="banner-centro-cirurgico" class="hidden rounded-xl border-2 border-fuchsia-500 bg-fuchsia-950/90 p-4 no-print shadow-lg shadow-fuchsia-950/50"></div>
+
+    <!-- Emergency Banner: Equipment Shortage (Monitors & Mechanical Ventilators) -->
+    <div id="banner-equipamentos" class="hidden rounded-xl border-2 border-orange-500 bg-orange-950/90 p-4 no-print shadow-lg shadow-orange-950/50"></div>
+
+    <!-- Emergency Banner: IT System Outage (Downtime Indefinite / Paper Mode) -->
+    <div id="banner-sistema-ti" class="hidden rounded-xl border-2 border-purple-500 bg-purple-950/90 p-4 no-print shadow-lg shadow-purple-950/50"></div>
+
+    <!-- Emergency Banner: Power Blackout / Generator Failure -->
+    <div id="banner-energia" class="hidden rounded-xl border p-4 no-print"></div>
+
+    <!-- Emergency Banner: Medication Shortage -->
+    <div id="banner-farmacia" class="hidden rounded-xl border border-amber-700 bg-amber-950/70 p-3.5 no-print"></div>
+
+    <!-- Global KPIs Strip -->
+    <section class="grid grid-cols-2 md:grid-cols-4 lg:grid-cols-8 gap-3 no-print">
+      <div class="bg-slate-900 border border-slate-800 rounded-xl p-3">
+        <div class="text-[11px] text-slate-400">340 Leitos Fixos + Apoio</div>
+        <div class="flex items-baseline justify-between mt-1">
+          <span id="kpi-ocupacao" class="text-xl font-bold text-white">--%</span>
+          <span id="kpi-leitos-detalhe" class="text-[11px] text-teal-300 font-semibold">--/340 fixos</span>
+        </div>
+        <div id="kpi-apoio-detalhe" class="text-[10px] text-slate-400 mt-1">PS Apoio: -- • SRPA: --/18</div>
+        <div class="w-full bg-slate-800 h-1.5 rounded-full mt-1.5 overflow-hidden">
+          <div id="bar-ocupacao" class="bg-teal-500 h-full transition-all" style="width: 0%"></div>
+        </div>
+      </div>
+
+      <div class="bg-slate-900 border border-slate-800 rounded-xl p-3">
+        <div class="text-[11px] text-slate-400">Pacientes Críticos / DVA</div>
+        <div class="flex items-baseline justify-between mt-1">
+          <span id="kpi-criticos" class="text-xl font-bold text-rose-400">--</span>
+          <span id="kpi-dva" class="text-[11px] text-amber-300">-- em DVA</span>
+        </div>
+        <div id="kpi-bloqueados" class="text-[11px] text-slate-500 mt-1.5">-- leitos bloqueados</div>
+      </div>
+
+      <div class="bg-slate-900 border border-slate-800 rounded-xl p-3">
+        <div class="text-[11px] text-slate-400">Ventiladores & Monitores</div>
+        <div class="flex items-baseline justify-between mt-1">
+          <span id="kpi-ventiladores" class="text-sm font-bold text-sky-400">VM: --/--</span>
+          <span id="kpi-monitores" class="text-[11px] font-bold text-indigo-300">Mon: --/--</span>
+        </div>
+        <div id="kpi-vent-livre" class="text-[10px] text-emerald-400 mt-1.5">Parque 100% suficiente</div>
+      </div>
+
+      <div class="bg-slate-900 border border-slate-800 rounded-xl p-3">
+        <div class="text-[11px] text-slate-400">Quadro de Enfermagem</div>
+        <div class="flex items-baseline justify-between mt-1">
+          <span id="kpi-rh-enf" class="text-base font-bold text-white">--</span>
+          <span id="kpi-deficit-rh" class="text-[11px] font-semibold text-rose-400">--</span>
+        </div>
+        <div class="text-[11px] text-slate-500 mt-1.5">Padrão COFEN / RDC-7</div>
+      </div>
+
+      <div class="bg-slate-900 border border-slate-800 rounded-xl p-3">
+        <div class="text-[11px] text-slate-400">Falta de Medicamentos</div>
+        <div class="flex items-baseline justify-between mt-1">
+          <span id="kpi-farmacia" class="text-xl font-bold text-emerald-400">0</span>
+          <span id="kpi-farmacia-pac" class="text-[11px] text-slate-400">0 pac.</span>
+        </div>
+        <div class="text-[11px] text-slate-500 mt-1.5">Monitoramento CFT/PEP</div>
+      </div>
+
+      <div class="bg-slate-900 border border-slate-800 rounded-xl p-3">
+        <div class="text-[11px] text-slate-400">Energia & Geradores</div>
+        <div class="flex items-baseline justify-between mt-1">
+          <span id="kpi-energia" class="text-sm font-bold text-emerald-400">NORMAL</span>
+          <span id="kpi-bateria" class="text-[11px] text-slate-400">VM 90m</span>
+        </div>
+        <div class="text-[11px] text-slate-500 mt-1.5">Rede + 3 Geradores</div>
+      </div>
+
+      <div class="bg-slate-900 border border-slate-800 rounded-xl p-3">
+        <div class="text-[11px] text-slate-400">Sistema TI / PEP</div>
+        <div class="flex items-baseline justify-between mt-1">
+          <span id="kpi-ti" class="text-sm font-bold text-emerald-400">ONLINE</span>
+          <span id="kpi-ti-papel" class="text-[11px] text-slate-400">Digital</span>
+        </div>
+        <div class="text-[11px] text-slate-500 mt-1.5">HIS • PACS • LIS</div>
+      </div>
+
+      <div class="bg-slate-900 border border-slate-800 rounded-xl p-3">
+        <div class="text-[11px] text-slate-400">Risco Assistencial</div>
+        <div class="flex items-baseline justify-between mt-1">
+          <span id="kpi-risco" class="text-xl font-bold text-amber-400">--/100</span>
+          <span id="kpi-altas" class="text-[11px] text-emerald-400">-- altas</span>
+        </div>
+        <div class="text-[11px] text-slate-500 mt-1.5">Índice Composto HRO</div>
+      </div>
+    </section>
+
+    <!-- TAB 1: DIGITAL TWIN, OCCUPANCY CONTROL & SECTOR MAP -->
+    <div id="tab-twin" class="space-y-6">
+
+      <!-- Quick Occupancy Control & Top Overcrowded Areas -->
+      <div class="grid grid-cols-1 lg:grid-cols-12 gap-4">
+        <!-- Left: Adjust Global Occupancy & Hotspot Areas -->
+        <div class="lg:col-span-7 bg-slate-900 border border-teal-900/70 rounded-xl p-4 flex flex-col justify-between">
+          <div>
+            <div class="flex items-center justify-between mb-2">
+              <h2 class="text-sm font-bold uppercase tracking-wider text-teal-400">
+                🎛️ Controle de Efetivo de Ocupação & Áreas de Maior Pressão
+              </h2>
+              <button onclick="abrirModalMatrizOcupacao()" class="px-2.5 py-1 rounded bg-teal-950 hover:bg-teal-900 text-teal-300 border border-teal-700 text-xs font-semibold transition">
+                ✏️ Editar Efetivo Exato de Todas as Alas
+              </button>
+            </div>
+            <p class="text-xs text-slate-400 mb-3">
+              Selecione qual área do hospital concentra maior ocupação no momento e ajuste o multiplicador global do censo. O sistema cria ou remove automaticamente os pacientes anonimizados e suas prescrições.
+            </p>
+
+            <div class="grid grid-cols-1 md:grid-cols-2 gap-3">
+              <div>
+                <label class="block text-xs text-slate-300 mb-1">Foco das Áreas com Maior Ocupação</label>
+                <select id="ocup-perfil" class="w-full bg-slate-950 border border-slate-700 rounded-lg px-3 py-2 text-xs text-white">
+                  <option value="PORTA_DE_ENTRADA_E_UTI">🔥 Pronto-Socorro (148%) + UTI Adulto/Ped Saturadas</option>
+                  <option value="SURTO_CLINICO_E_PEDIATRICO">🫁 Pediatria + UTI Ped/Neo + Clínica Médica em Sobrecarga</option>
+                  <option value="TRAUMA_E_CIRURGIA">🦴 Clínica Cirúrgica/Trauma + UTI Adulto + Sala Vermelha</option>
+                  <option value="COLAPSO_HOSPITALAR_TOTAL">🚨 Superlotação Generalizada em Todas as Alas (>115%)</option>
+                  <option value="OCUPACAO_CONTROLADA_80">✅ Ocupação Segura / Controlada (~80% em todas as alas)</option>
+                </select>
+              </div>
+              <div>
+                <div class="flex justify-between text-xs text-slate-300 mb-1">
+                  <span>Multiplicador do Efetivo Global:</span>
+                  <strong id="ocup-fator-label" class="text-teal-300">100%</strong>
+                </div>
+                <input id="ocup-fator" type="range" min="60" max="140" step="5" value="100"
+                  oninput="document.getElementById('ocup-fator-label').textContent = this.value + '%'"
+                  class="w-full accent-teal-500 cursor-pointer mt-1" />
+                <div class="flex justify-between text-[10px] text-slate-500">
+                  <span>60% (Baixa)</span>
+                  <span>100% (Padrão)</span>
+                  <span>140% (Extrema)</span>
+                </div>
+              </div>
+            </div>
+          </div>
+
+          <div class="mt-4 flex flex-wrap gap-2">
+            <button onclick="aplicarPerfilOcupacao()" class="px-4 py-2 rounded-lg bg-teal-600 hover:bg-teal-500 text-white text-xs font-semibold transition shadow">
+              Aplicar Efetivo & Redistribuir Áreas Críticas
+            </button>
+          </div>
+        </div>
+
+        <!-- Right: Top Overcrowded Areas Ranking -->
+        <div class="lg:col-span-5 bg-slate-900 border border-slate-800 rounded-xl p-4">
+          <h3 class="text-xs font-bold uppercase tracking-wider text-rose-400 mb-2.5">
+            📊 Ranking: Áreas com Maior Taxa de Ocupação Atual
+          </h3>
+          <div id="top-areas-list" class="space-y-2"></div>
+        </div>
+      </div>
+
+      <!-- Tactical Recommendations Banner -->
+      <div class="bg-slate-900/90 border border-slate-800 rounded-xl p-4">
+        <div class="flex items-center justify-between mb-3">
+          <h2 class="text-sm font-bold uppercase tracking-wider text-teal-400">
+            🧠 Diagnóstico Tático do Gêmeo Digital & Plano de Ação Imediato
+          </h2>
+          <span class="text-xs text-slate-400">Cruzamento em tempo real: Ocupação × RH × Farmácia × Rede Elétrica</span>
+        </div>
+        <div id="recommendations-list" class="grid grid-cols-1 md:grid-cols-2 gap-3"></div>
+      </div>
+
+      <!-- Sectors Grid -->
+      <div>
+        <div class="flex items-center justify-between mb-3">
+          <h2 class="text-base font-bold text-white">Mapa Detalhado de Alas / Setores do HRO</h2>
+          <span class="text-xs text-slate-400">Clique em "Calibrar" para alterar o efetivo individual do setor ou "Ver Pacientes" para acessar as prescrições</span>
+        </div>
+        <div id="sectors-grid" class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4"></div>
+      </div>
+    </div>
+
+    <!-- TAB 2: CONTINGENCY SIMULATOR & CRISIS ROOM -->
+    <div id="tab-sim" class="hidden space-y-6">
+
+      <!-- Row 1: Power Outage + Generator Failure AND Medication Shortages -->
+      <div class="grid grid-cols-1 lg:grid-cols-12 gap-5">
+
+        <!-- Power Outage & Generator Failure Card -->
+        <div class="lg:col-span-5 bg-slate-900 border border-red-800/80 rounded-xl p-5 flex flex-col justify-between shadow-lg shadow-red-950/20">
+          <div>
+            <div class="flex items-center justify-between">
+              <span class="text-xs font-bold uppercase px-2.5 py-0.5 rounded bg-red-950 text-red-300 border border-red-700">
+                ⚡ Crise Energética • Blackout & Geradores
+              </span>
+              <span class="text-xs text-slate-400">Suporte à Vida (VM/BIC)</span>
+            </div>
+            <h3 class="text-base font-bold text-white mt-3">Falta de Energia por Tempo Indeterminado + Falha de Geradores</h3>
+            <p class="text-xs text-slate-400 mt-1">
+              Simula queda da concessionária combinada com falha parcial ou total dos grupos geradores diesel. Calcula a autonomia restante das baterias internas dos Ventiladores Mecânicos (90 min) e Bombas de Infusão (120 min) e a demanda de profissionais para ventilação manual (Ambu 1:1).
+            </p>
+
+            <div class="mt-4 space-y-3">
+              <div>
+                <label class="block text-xs text-slate-300 mb-1">Status da Rede Elétrica Externa (Concessionária)</label>
+                <select id="pwr-rede" class="w-full bg-slate-950 border border-slate-700 rounded-lg px-3 py-2 text-xs text-white">
+                  <option value="QUEDA_INDETERMINADA">🚨 Queda de Energia por Tempo Indeterminado (Subestação Off)</option>
+                  <option value="NORMAL">✅ Rede Externa Normalizada</option>
+                </select>
+              </div>
+
+              <div>
+                <label class="block text-xs text-slate-300 mb-1">Status dos Grupos Geradores Hospitalares</label>
+                <select id="pwr-gerador" class="w-full bg-slate-950 border border-slate-700 rounded-lg px-3 py-2 text-xs text-white">
+                  <option value="FALHA_TOTAL">💥 FALHA TOTAL DOS GERADORES (Operação exclusiva em Baterias/Ambu)</option>
+                  <option value="FALHA_PARCIAL">⚠️ Falha Parcial (Apenas Barramento UTI/Centro Cirúrgico Ativo)</option>
+                  <option value="STANDBY_OK">✅ Geradores Operando Normalmente</option>
+                </select>
+              </div>
+
+              <div>
+                <div class="flex justify-between text-xs text-slate-300 mb-1">
+                  <span>Tempo Decorrido sem Energia Externa/Gerador:</span>
+                  <strong id="pwr-tempo-label" class="text-red-400">45 min</strong>
+                </div>
+                <input id="pwr-tempo" type="range" min="0" max="120" step="5" value="45"
+                  oninput="document.getElementById('pwr-tempo-label').textContent = this.value + ' min'"
+                  class="w-full accent-red-500 cursor-pointer" />
+                <div class="flex justify-between text-[10px] text-slate-500">
+                  <span>0 min (Início)</span>
+                  <span>60 min (Alerta VM)</span>
+                  <span>90 min+ (Colapso Baterias)</span>
+                </div>
+              </div>
+            </div>
+          </div>
+
+          <div class="mt-5 grid grid-cols-2 gap-2">
+            <button onclick="dispararCriseEnergia()" class="py-2.5 px-3 rounded-lg bg-red-600 hover:bg-red-500 text-white font-semibold text-xs transition shadow-lg shadow-red-950">
+              ⚡ Disparar Blackout / Falha de Gerador
+            </button>
+            <button onclick="normalizarEnergia()" class="py-2.5 px-3 rounded-lg bg-slate-800 hover:bg-slate-700 text-slate-200 font-medium text-xs border border-slate-700 transition">
+              🔌 Restabelecer Energia
+            </button>
+          </div>
+        </div>
+
+        <!-- Specific Medication Shortage Card -->
+        <div class="lg:col-span-7 bg-slate-900 border border-amber-800/80 rounded-xl p-5 flex flex-col justify-between">
+          <div>
+            <div class="flex items-center justify-between">
+              <span class="text-xs font-bold uppercase px-2.5 py-0.5 rounded bg-amber-950 text-amber-300 border border-amber-700">
+                🧪 Ruptura Farmacêutica • Falta de Medicamentos Específicos
+              </span>
+              <span class="text-xs text-slate-400">Integração Direta com PEP</span>
+            </div>
+            <h3 class="text-base font-bold text-white mt-2">Controle de Falta de Medicamentos e Substituição Terapêutica</h3>
+            <p class="text-xs text-slate-400 mt-1">
+              Marque qualquer medicamento abaixo como <strong>Em Falta Total (0h)</strong> ou <strong>Estoque Crítico (&lt;12h)</strong>. O sistema identifica instantaneamente todas as prescrições afetadas no hospital e sugere o substituto da Comissão de Farmácia e Terapêutica (CFT).
+            </p>
+
+            <!-- Custom Medication Shortage Form -->
+            <div class="mt-3 grid grid-cols-1 md:grid-cols-4 gap-2 bg-slate-950 p-2.5 rounded-lg border border-slate-800">
+              <input id="custom-med-nome" type="text" placeholder="Outro medicamento (ex: Meropenem)" class="bg-slate-900 border border-slate-700 rounded px-2.5 py-1.5 text-xs text-white" />
+              <input id="custom-med-alt" type="text" placeholder="Substituto sugerido (ex: Cefepima)" class="md:col-span-2 bg-slate-900 border border-slate-700 rounded px-2.5 py-1.5 text-xs text-white" />
+              <button onclick="adicionarFaltaCustom()" class="bg-amber-600 hover:bg-amber-500 text-white font-semibold rounded px-3 py-1.5 text-xs">
+                + Declarar em Falta
+              </button>
+            </div>
+
+            <!-- Pharmacy Inventory Table -->
+            <div class="mt-3 overflow-x-auto max-h-64 overflow-y-auto">
+              <table class="w-full text-left border-collapse text-xs">
+                <thead>
+                  <tr class="border-b border-slate-800 text-slate-400">
+                    <th class="py-1.5 px-2">Medicamento</th>
+                    <th class="py-1.5 px-2">Status Atual</th>
+                    <th class="py-1.5 px-2">Substituto CFT</th>
+                    <th class="py-1.5 px-2 text-right">Simular Estoque / Ação</th>
+                  </tr>
+                </thead>
+                <tbody id="pharmacy-table-body" class="divide-y divide-slate-800/70"></tbody>
+              </table>
+            </div>
+          </div>
+        </div>
+      </div>
+
+      <!-- Row 1.5: Indefinite IT System Outage (HIS/PEP/PACS Downtime -> Paper Contingency Mode) -->
+      <div class="bg-slate-900 border-2 border-purple-800/80 rounded-xl p-5 shadow-lg shadow-purple-950/20">
+        <div class="flex flex-wrap items-center justify-between gap-2 mb-2">
+          <div class="flex items-center gap-2">
+            <span class="text-xs font-bold uppercase px-2.5 py-0.5 rounded bg-purple-950 text-purple-300 border border-purple-700">
+              📵 Queda do Sistema Informatizado • Sem Tempo Determinado para Volta
+            </span>
+            <span class="text-xs text-slate-400">Transição p/ Contingência em Papel Carbonado & Prancheta</span>
+          </div>
+          <span class="text-xs font-mono text-purple-300">Impacto: PEP + Farmácia + Laboratório (LIS) + Imagem (PACS)</span>
+        </div>
+
+        <p class="text-xs text-slate-300 mb-4">
+          Simula a indisponibilidade total do sistema informatizado hospitalar (por queda de servidor/banco de dados, incidente cibernético/ransomware ou rompimento de fibra) <strong>sem previsão de retorno</strong>. O hospital entra em <strong>Operação Manual em Papel</strong>, exigindo +20-25% de carga de trabalho de enfermagem para transcrição manual, mensageiros físicos para Farmácia/Laboratório e dupla checagem presencial de alergias.
+        </p>
+
+        <div class="grid grid-cols-1 md:grid-cols-4 gap-3 items-end">
+          <div>
+            <label class="block text-xs text-slate-300 mb-1">Causa da Queda do Sistema</label>
+            <select id="ti-causa" class="w-full bg-slate-950 border border-slate-700 rounded-lg px-3 py-2 text-xs text-white">
+              <option value="Falha Crítica do Servidor Central / Corrupção de Banco de Dados">💥 Falha Crítica do Servidor / Banco de Dados</option>
+              <option value="Incidente Cibernético / Ransomware (Isolamento Preventivo da Rede)">🛡️ Incidente Cibernético / Bloqueio Preventivo</option>
+              <option value="Rompimento Duplo de Fibra Óptica / Queda de Datacenter">🌐 Rompimento de Fibra / Queda de Datacenter</option>
+              <option value="Pane no Switch Core / Indisponibilidade Rede Interna Wi-Fi e Cabo">🔌 Pane no Switch Core / Rede Interna</option>
+            </select>
+          </div>
+
+          <div>
+            <label class="block text-xs text-slate-300 mb-1">Módulos Hospitalares Afetados</label>
+            <select id="ti-modulos" class="w-full bg-slate-950 border border-slate-700 rounded-lg px-3 py-2 text-xs text-white">
+              <option value="TODOS: Prescrição Eletrônica (PEP), Farmácia, Laboratório (LIS), Imagem (PACS) e Regulação">Todos (PEP + Farmácia + LIS + PACS + Censo)</option>
+              <option value="Prescrição Eletrônica (PEP) e Dispensação Farmacêutica">Apenas Prescrição (PEP) e Farmácia</option>
+              <option value="Laudos de Laboratório (LIS) e Servidor de Imagem (PACS/Tomografia)">Apenas Exames (Laboratório LIS e Imagem PACS)</option>
+            </select>
+          </div>
+
+          <div>
+            <div class="flex justify-between text-xs text-slate-300 mb-1">
+              <span>Tempo Acumulado Fora do Ar (Sem Previsão):</span>
+              <strong id="ti-horas-label" class="text-purple-300">24h (Indeterminado)</strong>
+            </div>
+            <input id="ti-horas" type="range" min="2" max="120" step="2" value="24"
+              oninput="document.getElementById('ti-horas-label').textContent = this.value + 'h (Indeterminado)'"
+              class="w-full accent-purple-500 cursor-pointer" />
+          </div>
+
+          <div class="flex gap-2">
+            <button onclick="dispararQuedaSistemaTI()" class="flex-1 py-2 px-3 rounded-lg bg-purple-600 hover:bg-purple-500 text-white font-semibold text-xs transition shadow-lg shadow-purple-950">
+              📵 Derrubar Sistema (Modo Papel)
+            </button>
+            <button onclick="restaurarSistemaTI()" class="py-2 px-3 rounded-lg bg-slate-800 hover:bg-slate-700 text-slate-200 font-medium text-xs border border-slate-700 transition">
+              💻 Voltar Online
+            </button>
+          </div>
+        </div>
+      </div>
+
+      <!-- Row 1.8: Surgical Center Overcrowding (18 SRPA Beds) + Equipment Shortage (Monitors & Ventilators) -->
+      <div class="grid grid-cols-1 lg:grid-cols-2 gap-5">
+
+        <!-- Left Card: Surgical Center Overcrowding + Bed-Dependent Surgeries + Blocked ICU Discharges -->
+        <div class="bg-slate-900 border-2 border-fuchsia-800/80 rounded-xl p-5 flex flex-col justify-between shadow-lg shadow-fuchsia-950/20">
+          <div>
+            <div class="flex flex-wrap items-center justify-between gap-2">
+              <span class="text-xs font-bold uppercase px-2.5 py-0.5 rounded bg-fuchsia-950 text-fuchsia-300 border border-fuchsia-700">
+                🏥 Superlotação Centro Cirúrgico & SRPA (18 Leitos)
+              </span>
+              <span class="text-xs font-mono text-fuchsia-300">Cirurgias Leito-Dependentes • UTI Travada</span>
+            </div>
+            <h3 class="text-base font-bold text-white mt-2.5">
+              Cirurgias Leito-Dependentes sem Vaga UTI & Bloqueio de Alta da UTI
+            </h3>
+            <p class="text-xs text-slate-300 mt-1">
+              Simula o gargalo em cadeia (<em>Exit Block</em>): as Enfermarias de destino (Clínica Cirúrgica 85 leitos e Clínica Médica 80 leitos) ficam com <strong>0 leitos livres</strong>, impedindo a alta dos pacientes estáveis da UTI Adulto. Com a UTI 100% lotada (40/40), os pacientes de <strong>cirurgias leito-dependentes</strong> ficam retidos intubados na <strong>SRPA (18 leitos)</strong> e bloqueiam salas cirúrgicas.
+            </p>
+
+            <div class="grid grid-cols-1 md:grid-cols-3 gap-3 mt-4">
+              <div>
+                <label class="block text-[11px] text-slate-300 mb-1">Cirurgias Leito-Dependentes Retidas (Aguardando UTI)</label>
+                <input id="cc-leito-dep" type="number" min="1" max="15" value="6" class="w-full bg-slate-950 border border-slate-700 rounded-lg px-3 py-1.5 text-sm text-white font-bold" />
+              </div>
+              <div>
+                <label class="block text-[11px] text-slate-300 mb-1">Pacientes UTI c/ Alta Bloqueada (Sem Leito Setor)</label>
+                <input id="cc-uti-bloq" type="number" min="1" max="20" value="8" class="w-full bg-slate-950 border border-slate-700 rounded-lg px-3 py-1.5 text-sm text-white font-bold" />
+              </div>
+              <div>
+                <label class="block text-[11px] text-slate-300 mb-1">Salas Cirúrgicas Travadas c/ Pós-Op Crítico</label>
+                <input id="cc-salas-bloq" type="number" min="1" max="10" value="4" class="w-full bg-slate-950 border border-slate-700 rounded-lg px-3 py-1.5 text-sm text-white font-bold" />
+              </div>
+            </div>
+          </div>
+
+          <div class="flex flex-wrap gap-2 mt-4 pt-3 border-t border-slate-800">
+            <button onclick="dispararSuperlotacaoCC('DISPARAR_BLOQUEIO')" class="flex-1 py-2.5 px-3 rounded-lg bg-fuchsia-600 hover:bg-fuchsia-500 text-white font-bold text-xs transition shadow-lg shadow-fuchsia-950">
+              🚨 Simular Superlotação CC/SRPA + UTI sem Leito de Alta
+            </button>
+            <button onclick="dispararSuperlotacaoCC('DESBLOQUEAR_GIRO')" class="py-2.5 px-3 rounded-lg bg-slate-800 hover:bg-slate-700 text-emerald-300 font-semibold text-xs border border-emerald-700 transition">
+              🔄 Desbloquear Giro (Enf → UTI → SRPA)
+            </button>
+          </div>
+        </div>
+
+        <!-- Right Card: Shortage of Monitors, Mechanical Ventilators & Insufficient Quantity -->
+        <div class="bg-slate-900 border-2 border-orange-800/80 rounded-xl p-5 flex flex-col justify-between shadow-lg shadow-orange-950/20">
+          <div>
+            <div class="flex flex-wrap items-center justify-between gap-2">
+              <span class="text-xs font-bold uppercase px-2.5 py-0.5 rounded bg-orange-950 text-orange-300 border border-orange-700">
+                📟 Falta de Monitores, Ventiladores & Quantitativo Insuficiente
+              </span>
+              <span class="text-xs font-mono text-orange-300">Engenharia Clínica / Suporte à Vida</span>
+            </div>
+            <h3 class="text-base font-bold text-white mt-2.5">
+              Escassez de Monitores Multiparamétricos e Ventiladores Mecânicos
+            </h3>
+            <p class="text-xs text-slate-300 mt-1">
+              Simula indisponibilidade técnica ou quantitativo insuficiente de <strong>monitores multiparamétricos</strong> e <strong>ventiladores mecânicos</strong> frente ao número de pacientes críticos na UTI, PS (Apoio), SRPA (18 leitos) e Enfermarias.
+            </p>
+
+            <div class="grid grid-cols-1 md:grid-cols-3 gap-3 mt-4">
+              <div>
+                <label class="block text-[11px] text-slate-300 mb-1">Cenário de Insuficiência</label>
+                <select id="eq-cenario" class="w-full bg-slate-950 border border-slate-700 rounded-lg px-2.5 py-1.5 text-xs text-white">
+                  <option value="FALTA_CRITICA_AMBOS">🚨 Falta Conjunta: Ventiladores + Monitores Insuficientes</option>
+                  <option value="FALTA_MONITORES">📟 Falta de Monitores Multiparamétricos</option>
+                  <option value="FALTA_VENTILADORES">🫁 Falta de Ventiladores Mecânicos (VM)</option>
+                  <option value="CUSTOM">⚙️ Quantitativo Inoperante Customizado</option>
+                </select>
+              </div>
+              <div>
+                <label class="block text-[11px] text-slate-300 mb-1">Setor Alvo</label>
+                <select id="eq-setor" class="w-full bg-slate-950 border border-slate-700 rounded-lg px-2.5 py-1.5 text-xs text-white">
+                  <option value="TODOS">Hospital Inteiro (UTI + PS + SRPA + Enf)</option>
+                  <option value="UTI-AD">UTI Geral Adulto (40 leitos)</option>
+                  <option value="CC-SRPA">Centro Cirúrgico & SRPA (18 leitos)</option>
+                  <option value="PS-EMERG">Pronto-Socorro (Apoio)</option>
+                  <option value="UTI-PED">UTI Pediátrica</option>
+                  <option value="CLIN-CIR">Clínica Cirúrgica</option>
+                  <option value="CLIN-MED">Clínica Médica</option>
+                </select>
+              </div>
+              <div class="grid grid-cols-2 gap-1.5">
+                <div>
+                  <label class="block text-[10px] text-slate-400 mb-1">VM em Falta</label>
+                  <input id="eq-vm-inop" type="number" min="0" max="40" value="8" class="w-full bg-slate-950 border border-slate-700 rounded-lg px-2 py-1.5 text-xs text-white font-bold" />
+                </div>
+                <div>
+                  <label class="block text-[10px] text-slate-400 mb-1">Mon. em Falta</label>
+                  <input id="eq-mon-inop" type="number" min="0" max="60" value="18" class="w-full bg-slate-950 border border-slate-700 rounded-lg px-2 py-1.5 text-xs text-white font-bold" />
+                </div>
+              </div>
+            </div>
+          </div>
+
+          <div class="flex flex-wrap gap-2 mt-4 pt-3 border-t border-slate-800">
+            <button onclick="dispararCriseEquipamentos()" class="flex-1 py-2.5 px-3 rounded-lg bg-orange-600 hover:bg-orange-500 text-white font-bold text-xs transition shadow-lg shadow-orange-950">
+              📟 Simular Falta de Monitores / Ventiladores
+            </button>
+            <button onclick="normalizarEquipamentos()" class="py-2.5 px-3 rounded-lg bg-slate-800 hover:bg-slate-700 text-slate-200 font-medium text-xs border border-slate-700 transition">
+              🔧 Recompor Parque
+            </button>
+          </div>
+        </div>
+
+      </div>
+
+      <!-- Row 2: IMV Disaster, HR Restriction, Operational Intercurrences -->
+      <div class="grid grid-cols-1 lg:grid-cols-3 gap-5">
+
+        <!-- Scenario 1: Mass Casualty / Disaster (IMV) -->
+        <div class="bg-slate-900 border border-rose-900/60 rounded-xl p-5 flex flex-col justify-between">
+          <div>
+            <div class="flex items-center justify-between">
+              <span class="text-xs font-bold uppercase px-2.5 py-0.5 rounded bg-rose-950 text-rose-300 border border-rose-800">Desastre / IMV</span>
+              <span class="text-xs text-slate-400">Protocolo START</span>
+            </div>
+            <h3 class="text-base font-bold text-white mt-3">Incidente com Múltiplas Vítimas</h3>
+            <p class="text-xs text-slate-400 mt-1">
+              Simula chegada súbita de vítimas politraumatizadas (28% Vermelhos em VM, 42% Amarelos, 30% Verdes), testando Sala Vermelha, UTI Adulto e Centro Cirúrgico.
+            </p>
+
+            <div class="mt-4 space-y-3">
+              <div>
+                <label class="block text-xs text-slate-300 mb-1">Número Total de Vítimas</label>
+                <input id="imv-vitimas" type="number" value="18" min="3" max="80" class="w-full bg-slate-950 border border-slate-700 rounded-lg px-3 py-2 text-sm text-white" />
+              </div>
+              <div>
+                <label class="block text-xs text-slate-300 mb-1">Natureza do Desastre / Evento</label>
+                <input id="imv-desc" type="text" value="Colisão Múltipla BR-282 / Ônibus + Carreta" class="w-full bg-slate-950 border border-slate-700 rounded-lg px-3 py-2 text-sm text-white" />
+              </div>
+            </div>
+          </div>
+
+          <button onclick="dispararIMV()" class="mt-5 w-full py-2.5 rounded-lg bg-rose-600 hover:bg-rose-500 text-white font-semibold text-sm transition shadow-lg shadow-rose-950">
+            🚨 Disparar Múltiplas Vítimas
+          </button>
+        </div>
+
+        <!-- Scenario 2: HR Restriction / Absenteeism -->
+        <div class="bg-slate-900 border border-amber-900/60 rounded-xl p-5 flex flex-col justify-between">
+          <div>
+            <div class="flex items-center justify-between">
+              <span class="text-xs font-bold uppercase px-2.5 py-0.5 rounded bg-amber-950 text-amber-300 border border-amber-800">Restrição de RH</span>
+              <span class="text-xs text-slate-400">COFEN / RDC-7</span>
+            </div>
+            <h3 class="text-base font-bold text-white mt-3">Absenteísmo / Déficit de Equipe</h3>
+            <p class="text-xs text-slate-400 mt-1">
+              Simula redução de Médicos, Enfermeiros e Técnicos de Enfermagem e calcula o atraso em minutos na checagem de medicamentos.
+            </p>
+
+            <div class="mt-4 space-y-3">
+              <div>
+                <label class="block text-xs text-slate-300 mb-1">Percentual de Redução na Escala (%)</label>
+                <input id="rh-perc" type="number" value="25" min="5" max="60" class="w-full bg-slate-950 border border-slate-700 rounded-lg px-3 py-2 text-sm text-white" />
+              </div>
+              <div>
+                <label class="block text-xs text-slate-300 mb-1">Setor Afetado</label>
+                <select id="rh-setor" class="w-full bg-slate-950 border border-slate-700 rounded-lg px-3 py-2 text-sm text-white">
+                  <option value="TODOS">Hospital Inteiro (Todos os Setores)</option>
+                  <option value="UTI-AD">UTI Geral Adulto</option>
+                  <option value="CC-SRPA">Centro Cirúrgico & SRPA (18 Leitos)</option>
+                  <option value="PS-EMERG">Pronto-Socorro / Emergência (Apoio)</option>
+                  <option value="CLIN-CIR">Clínica Cirúrgica & Trauma</option>
+                  <option value="CLIN-MED">Clínica Médica</option>
+                </select>
+              </div>
+              <div>
+                <label class="block text-xs text-slate-300 mb-1">Causa da Restrição</label>
+                <input id="rh-motivo" type="text" value="Afastamentos por Surto Respiratório" class="w-full bg-slate-950 border border-slate-700 rounded-lg px-3 py-2 text-sm text-white" />
+              </div>
+            </div>
+          </div>
+
+          <button onclick="dispararRH()" class="mt-5 w-full py-2.5 rounded-lg bg-amber-600 hover:bg-amber-500 text-white font-semibold text-sm transition shadow-lg shadow-amber-950">
+            ⚠️ Simular Restrição de RH
+          </button>
+        </div>
+
+        <!-- Scenario 3: Operational & Infrastructure Intercurrences -->
+        <div class="bg-slate-900 border border-sky-900/60 rounded-xl p-5 flex flex-col justify-between">
+          <div>
+            <div class="flex items-center justify-between">
+              <span class="text-xs font-bold uppercase px-2.5 py-0.5 rounded bg-sky-950 text-sky-300 border border-sky-800">Intercorrências</span>
+              <span class="text-xs text-slate-400">Fluxo & Isolamento</span>
+            </div>
+            <h3 class="text-base font-bold text-white mt-3">Surtos, Isolamento & Exames</h3>
+            <div class="mt-3 space-y-2.5">
+              <button onclick="dispararIntercorrencia('SUPERLOTACAO_PS')" class="w-full text-left px-3.5 py-2.5 rounded-lg bg-slate-950 hover:bg-slate-800 border border-slate-800 text-xs transition flex items-center justify-between">
+                <span>🚑 <strong>Superlotação Súbita no PS (+12 macas)</strong><br/><span class="text-slate-400">Retenção de macas e boarding</span></span>
+                <span class="text-sky-400 font-bold">Simular →</span>
+              </button>
+
+              <button onclick="dispararIntercorrencia('SURTO_KPC')" class="w-full text-left px-3.5 py-2.5 rounded-lg bg-slate-950 hover:bg-slate-800 border border-slate-800 text-xs transition flex items-center justify-between">
+                <span>🦠 <strong>Surto KPC / Multirresistente (-8 leitos)</strong><br/><span class="text-slate-400">Bloqueio de coorte na UTI Adulto e Clínica Médica</span></span>
+                <span class="text-sky-400 font-bold">Simular →</span>
+              </button>
+
+              <button onclick="dispararIntercorrencia('ONDA_RESPIRATORIA')" class="w-full text-left px-3.5 py-2.5 rounded-lg bg-slate-950 hover:bg-slate-800 border border-slate-800 text-xs transition flex items-center justify-between">
+                <span>🫁 <strong>Onda Sazonal SRAG (+15 pac / +9 VM)</strong><br/><span class="text-slate-400">Pressão sobre ventiladores e UTI Pediátrica/PS</span></span>
+                <span class="text-sky-400 font-bold">Simular →</span>
+              </button>
+
+              <button onclick="dispararIntercorrencia('PANE_TOMOGRAFIA')" class="w-full text-left px-3.5 py-2.5 rounded-lg bg-slate-950 hover:bg-slate-800 border border-slate-800 text-xs transition flex items-center justify-between">
+                <span>⚡ <strong>Pane na Tomografia Computadorizada</strong><br/><span class="text-slate-400">Atraso em AVC/Trauma (+9 retidos no PS)</span></span>
+                <span class="text-sky-400 font-bold">Simular →</span>
+              </button>
+            </div>
+          </div>
+        </div>
+      </div>
+
+      <!-- Quick Evidence-Based Protocols Bar inside Crisis Room -->
+      <div class="bg-slate-900 border-2 border-teal-800/80 rounded-xl p-5 shadow-lg shadow-teal-950/20">
+        <div class="flex flex-wrap items-center justify-between gap-3 mb-3">
+          <div>
+            <div class="flex items-center gap-2">
+              <span class="text-xs font-bold uppercase px-2.5 py-0.5 rounded bg-teal-950 text-teal-300 border border-teal-700">
+                📚 Brainstorm Baseado em Evidências Científicas • Resposta Tática HRO
+              </span>
+              <span class="text-xs text-slate-400">NAM/IOM • CHEST 4S • Lean PROADI-SUS • Viccellio FCP • Litvak IHO</span>
+            </div>
+            <h3 class="text-sm font-bold text-white mt-1.5">
+              Acionamento Rápido de Protocolos Científicos para o Perfil do HRO (340 Leitos Fixos + PS Apoio + 18 SRPA)
+            </h3>
+          </div>
+          <button onclick="switchTab('evidencias')" class="px-3.5 py-2 rounded-lg bg-teal-600 hover:bg-teal-500 text-white text-xs font-bold transition shadow">
+            📖 Abrir Matriz 4S & Brainstorm Completo →
+          </button>
+        </div>
+        <div id="sim-quick-evidencias" class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-5 gap-2.5"></div>
+      </div>
+
+      <!-- Event Log Timeline -->
+      <div class="bg-slate-900 border border-slate-800 rounded-xl p-5">
+        <h3 class="text-sm font-bold uppercase tracking-wider text-slate-300 mb-3">📋 Diário de Bordo da Sala de Crise (Eventos Simulados)</h3>
+        <div id="events-timeline" class="space-y-2.5"></div>
+      </div>
+    </div>
+
+    <!-- TAB 3 (EVIDÊNCIAS): EVIDENCE-BASED BRAINSTORM & DECISION SUPPORT -->
+    <div id="tab-evidencias" class="hidden space-y-6">
+
+      <!-- Top Header: NAM/IOM Crisis Standards of Care Continuum -->
+      <div id="csc-banner" class="rounded-xl border-2 p-5 bg-slate-900 border-teal-700 shadow-lg">
+        <div class="flex flex-wrap items-center justify-between gap-4">
+          <div class="space-y-1 max-w-4xl">
+            <div class="flex items-center gap-2">
+              <span class="px-2.5 py-0.5 rounded bg-teal-950 text-teal-300 border border-teal-700 text-xs font-bold uppercase">
+                Modelo NAM / IOM — Crisis Standards of Care & CHEST Consensus
+              </span>
+              <span class="text-xs font-mono text-slate-300">Perfil Calibrado: 340 Leitos Fixos + PS (Apoio) + 18 SRPA</span>
+            </div>
+            <h2 id="csc-title" class="text-lg font-extrabold text-white mt-1">Carregando estágio de contingência...</h2>
+            <p id="csc-desc" class="text-xs text-slate-300"></p>
+          </div>
+          <div class="flex flex-wrap gap-2">
+            <button onclick="executarMitigacao()" class="px-4 py-2.5 rounded-lg bg-emerald-600 hover:bg-emerald-500 text-white text-xs font-bold transition shadow-lg">
+              ⚡ Executar Pacote Completo de Mitigação
+            </button>
+          </div>
+        </div>
+      </div>
+
+      <!-- 4S Matrix (Space, Staff, Stuff, System) -->
+      <div class="bg-slate-900 border border-slate-800 rounded-xl p-5">
+        <div class="flex flex-wrap items-center justify-between gap-2 mb-3">
+          <div>
+            <h3 class="text-sm font-bold uppercase tracking-wider text-teal-400">
+              🧭 Matriz 4S de Capacidade de Resposta (Space • Staff • Stuff • System — Hick et al. / CHEST)
+            </h3>
+            <p class="text-xs text-slate-400"> Diagnóstico em tempo real cruzando os 340 leitos fixos, PS de apoio e 18 leitos de SRPA com a literatura internacional</p>
+          </div>
+        </div>
+        <div id="matriz-4s-grid" class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-3.5"></div>
+      </div>
+
+      <!-- Filter & Legend Bar -->
+      <div class="flex flex-wrap items-center justify-between gap-3 bg-slate-900 border border-slate-800 rounded-xl px-4 py-3">
+        <div class="flex flex-wrap items-center gap-2 text-xs">
+          <span class="font-bold text-white">Filtrar Decisões do Brainstorm:</span>
+          <button onclick="filtrarProtocolosEvidencia('TODOS')" id="flt-ev-TODOS" class="px-3 py-1 rounded-lg bg-teal-600 text-white font-semibold">
+            Todos os 10 Protocolos
+          </button>
+          <button onclick="filtrarProtocolosEvidencia('ATIVOS')" id="flt-ev-ATIVOS" class="px-3 py-1 rounded-lg bg-slate-800 hover:bg-slate-700 text-rose-300 border border-rose-800/70 font-semibold">
+            🔥 Recomendados Agora (Crise Ativa)
+          </button>
+        </div>
+        <span class="text-xs text-slate-400">
+          Clique em <strong>"⚡ Aplicar Decisão no Gêmeo Digital"</strong> em qualquer cartão para executar a intervenção no hospital
+        </span>
+      </div>
+
+      <!-- 10 Evidence-Based Decision Cards -->
+      <div id="evidence-protocols-grid" class="grid grid-cols-1 lg:grid-cols-2 gap-4"></div>
+
+    </div>
+
+    <!-- TAB 4: ELECTRONIC PRESCRIPTION & CLINICAL RECORD (PEP) -->
+    <div id="tab-pep" class="hidden space-y-5">
+      <div class="grid grid-cols-1 lg:grid-cols-12 gap-5">
+
+        <!-- Left Column: Anonymized Patient List -->
+        <div class="lg:col-span-4 bg-slate-900 border border-slate-800 rounded-xl p-4 flex flex-col h-[78vh] no-print">
+          <div class="flex items-center justify-between mb-3">
+            <h2 class="text-sm font-bold text-white">Mapa de Pacientes (Anonimizados)</h2>
+            <span id="pep-count" class="text-xs text-teal-400 font-semibold">--</span>
+          </div>
+
+          <div class="space-y-2 mb-3">
+            <input id="pep-busca" oninput="carregarPacientes()" type="text" placeholder="Buscar por código (PAC-HRO-0001), leito ou diagnóstico..." class="w-full bg-slate-950 border border-slate-800 rounded-lg px-3 py-2 text-xs text-white" />
+            <div class="grid grid-cols-2 gap-2">
+              <select id="pep-setor" onchange="carregarPacientes()" class="bg-slate-950 border border-slate-800 rounded-lg px-2.5 py-1.5 text-xs text-white">
+                <option value="TODOS">Todos os Setores</option>
+                <option value="UTI-AD">UTI Geral Adulto (40)</option>
+                <option value="CC-SRPA">Centro Cirúrgico / SRPA (18)</option>
+                <option value="PS-EMERG">Pronto-Socorro (Apoio)</option>
+                <option value="UTI-PED">UTI Pediátrica (10)</option>
+                <option value="UTI-NEO">UTI Neonatal (20)</option>
+                <option value="CLIN-CIR">Clínica Cirúrgica (85)</option>
+                <option value="CLIN-MED">Clínica Médica (80)</option>
+                <option value="ONCO-UNA">Oncologia UNACON (45)</option>
+                <option value="MAT-OBST">Maternidade (35)</option>
+                <option value="PED-CLIN">Pediatria Clínica (25)</option>
+              </select>
+              <select id="pep-gravidade" onchange="carregarPacientes()" class="bg-slate-950 border border-slate-800 rounded-lg px-2.5 py-1.5 text-xs text-white">
+                <option value="TODOS">Todas Gravidades</option>
+                <option value="Critico">Crítico (NEWS2 ≥ 7)</option>
+                <option value="Grave">Grave</option>
+                <option value="Estavel">Estável</option>
+                <option value="Pre-Alta">Elegível Pré-Alta</option>
+              </select>
+            </div>
+          </div>
+
+          <div id="pep-patient-list" class="flex-1 overflow-y-auto space-y-2 pr-1"></div>
+        </div>
+
+        <!-- Right Column: Electronic Prescription & SOAP Evolution -->
+        <div class="lg:col-span-8 bg-slate-900 border border-slate-800 rounded-xl p-5 min-h-[78vh]">
+          <div id="pep-detail-content"></div>
+        </div>
+
+      </div>
+    </div>
+
+  </main>
+
+  <!-- Modal 1: Calibrate Single Sector -->
+  <div id="modal-sector" class="fixed inset-0 bg-black/75 z-50 hidden items-center justify-center p-4">
+    <div class="bg-slate-900 border border-slate-700 rounded-2xl max-w-lg w-full p-5 shadow-2xl">
+      <div class="flex items-center justify-between border-b border-slate-800 pb-3">
+        <h3 id="modal-sector-title" class="font-bold text-base text-white">Calibrar Setor</h3>
+        <button onclick="fecharModalSetor()" class="text-slate-400 hover:text-white text-sm">✕</button>
+      </div>
+      <input type="hidden" id="modal-sector-id" />
+      <div class="grid grid-cols-3 gap-3 mt-4">
+        <div>
+          <label class="block text-xs text-slate-400 mb-1">Pacientes Ocupados</label>
+          <input id="mod-ocupados" type="number" min="0" class="w-full bg-slate-950 border border-slate-700 rounded-lg px-3 py-2 text-sm text-white" />
+        </div>
+        <div>
+          <label class="block text-xs text-slate-400 mb-1">Leitos Bloqueados</label>
+          <input id="mod-bloqueados" type="number" min="0" class="w-full bg-slate-950 border border-slate-700 rounded-lg px-3 py-2 text-sm text-white" />
+        </div>
+        <div>
+          <label class="block text-xs text-slate-400 mb-1">Médicos no Turno</label>
+          <input id="mod-medicos" type="number" min="1" class="w-full bg-slate-950 border border-slate-700 rounded-lg px-3 py-2 text-sm text-white" />
+        </div>
+        <div>
+          <label class="block text-xs text-slate-400 mb-1">Enfermeiros Turno</label>
+          <input id="mod-enfermeiros" type="number" min="1" class="w-full bg-slate-950 border border-slate-700 rounded-lg px-3 py-2 text-sm text-white" />
+        </div>
+        <div>
+          <label class="block text-xs text-slate-400 mb-1">Técnicos Enfermagem</label>
+          <input id="mod-tecnicos" type="number" min="1" class="w-full bg-slate-950 border border-slate-700 rounded-lg px-3 py-2 text-sm text-white" />
+        </div>
+        <div>
+          <label class="block text-xs text-slate-400 mb-1">Ventiladores em Uso</label>
+          <input id="mod-ventiladores" type="number" min="0" class="w-full bg-slate-950 border border-slate-700 rounded-lg px-3 py-2 text-sm text-white" />
+        </div>
+        <div>
+          <label class="block text-xs text-rose-400 mb-1">Ventiladores em Falta/Manut.</label>
+          <input id="mod-vent-inop" type="number" min="0" class="w-full bg-slate-950 border border-rose-800/80 rounded-lg px-3 py-2 text-sm text-white" />
+        </div>
+        <div>
+          <label class="block text-xs text-slate-400 mb-1">Monitores Necessários</label>
+          <input id="mod-monitores" type="number" min="0" class="w-full bg-slate-950 border border-slate-700 rounded-lg px-3 py-2 text-sm text-white" />
+        </div>
+        <div>
+          <label class="block text-xs text-rose-400 mb-1">Monitores em Falta/Manut.</label>
+          <input id="mod-mon-inop" type="number" min="0" class="w-full bg-slate-950 border border-rose-800/80 rounded-lg px-3 py-2 text-sm text-white" />
+        </div>
+      </div>
+      <div class="flex justify-end gap-2 mt-5">
+        <button onclick="fecharModalSetor()" class="px-4 py-2 rounded-lg bg-slate-800 text-slate-300 text-xs font-medium">Cancelar</button>
+        <button onclick="salvarCalibracaoSetor()" class="px-4 py-2 rounded-lg bg-teal-600 hover:bg-teal-500 text-white text-xs font-semibold">Salvar e Sincronizar Pacientes</button>
+      </div>
+    </div>
+  </div>
+
+  <!-- Modal 2: Full Occupancy Matrix for All Sectors -->
+  <div id="modal-matriz-ocupacao" class="fixed inset-0 bg-black/80 z-50 hidden items-center justify-center p-4">
+    <div class="bg-slate-900 border border-slate-700 rounded-2xl max-w-2xl w-full p-5 shadow-2xl max-h-[90vh] flex flex-col">
+      <div class="flex items-center justify-between border-b border-slate-800 pb-3">
+        <div>
+          <h3 class="font-bold text-base text-white">Editar Efetivo de Ocupação de Todas as Alas</h3>
+          <p class="text-xs text-slate-400">Defina a quantidade exata de pacientes internados e leitos bloqueados em cada setor do HRO</p>
+        </div>
+        <button onclick="fecharModalMatrizOcupacao()" class="text-slate-400 hover:text-white text-sm">✕</button>
+      </div>
+      <div id="matriz-ocupacao-rows" class="overflow-y-auto my-4 space-y-2 pr-1"></div>
+      <div class="flex justify-end gap-2 pt-3 border-t border-slate-800">
+        <button onclick="fecharModalMatrizOcupacao()" class="px-4 py-2 rounded-lg bg-slate-800 text-slate-300 text-xs font-medium">Cancelar</button>
+        <button onclick="salvarMatrizOcupacao()" class="px-4 py-2 rounded-lg bg-teal-600 hover:bg-teal-500 text-white text-xs font-semibold">
+          Salvar Novo Efetivo de Ocupação
+        </button>
+      </div>
+    </div>
+  </div>
+
+  <script>
+    let currentDashboard = null;
+    let selectedPatientId = null;
+    let currentEvidenciaFilter = 'TODOS';
+
+    function switchTab(tab) {
+      ['twin', 'sim', 'evidencias', 'pep'].forEach(t => {
+        const panel = document.getElementById(`tab-${t}`);
+        if (panel) panel.classList.toggle('hidden', t !== tab);
+        const btn = document.getElementById(`tab-btn-${t}`);
+        if (!btn) return;
+        if (t === tab) {
+          btn.className = "px-4 py-2.5 text-sm font-semibold border-b-2 border-teal-400 text-teal-300 transition flex items-center gap-1.5";
+        } else {
+          btn.className = "px-4 py-2.5 text-sm font-semibold border-b-2 border-transparent text-slate-400 hover:text-slate-200 transition flex items-center gap-1.5";
+        }
+      });
+      if (tab === 'pep') {
+        carregarPacientes();
+      }
+    }
+
+    async function carregarDashboard() {
+      const res = await fetch('/api/dashboard');
+      const data = await res.json();
+      currentDashboard = data;
+      renderKPIs(data.kpis, data.power, data.it_system || {}, data.surgical_center || {});
+      renderEmergencyBanners(data.power, data.pharmacy, data.kpis, data.it_system || {}, data.surgical_center || {});
+      renderTopAreas(data.top_occupied_areas);
+      renderRecommendations(data.recommendations);
+      renderSectors(data.sectors);
+      renderPharmacyTable(data.pharmacy);
+      renderEvents(data.events);
+      renderEvidenceBrainstorm(data.evidence_brainstorm || {});
+    }
+
+    function filtrarProtocolosEvidencia(filtro) {
+      currentEvidenciaFilter = filtro;
+      const btnTodos = document.getElementById('flt-ev-TODOS');
+      const btnAtivos = document.getElementById('flt-ev-ATIVOS');
+      if (btnTodos && btnAtivos) {
+        btnTodos.className = filtro === 'TODOS'
+          ? 'px-3 py-1 rounded-lg bg-teal-600 text-white font-semibold'
+          : 'px-3 py-1 rounded-lg bg-slate-800 hover:bg-slate-700 text-slate-300 font-semibold';
+        btnAtivos.className = filtro === 'ATIVOS'
+          ? 'px-3 py-1 rounded-lg bg-rose-600 text-white font-semibold'
+          : 'px-3 py-1 rounded-lg bg-slate-800 hover:bg-slate-700 text-rose-300 border border-rose-800/70 font-semibold';
+      }
+      if (currentDashboard && currentDashboard.evidence_brainstorm) {
+        renderEvidenceBrainstorm(currentDashboard.evidence_brainstorm);
+      }
+    }
+
+    async function aplicarProtocoloEvidencia(codigo_protocolo) {
+      await fetch('/api/simulate/evidencia', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ codigo_protocolo })
+      });
+      await carregarDashboard();
+      if (selectedPatientId && !document.getElementById('tab-pep').classList.contains('hidden')) {
+        await selecionarPaciente(selectedPatientId);
+      }
+    }
+
+    function renderEvidenceBrainstorm(eb) {
+      if (!eb || !eb.protocolos) return;
+
+      // Atualizar badge na aba
+      const badgeCount = document.getElementById('badge-evidencias-count');
+      if (badgeCount) {
+        if ((eb.acionar_agora_count || 0) > 0) {
+          badgeCount.textContent = `🔥 ${eb.acionar_agora_count} Crítico(s)`;
+          badgeCount.className = 'px-1.5 py-0.5 text-[10px] rounded-full bg-rose-600 text-white font-extrabold animate-pulse';
+        } else {
+          badgeCount.textContent = '10 Protocolos';
+          badgeCount.className = 'px-1.5 py-0.5 text-[10px] rounded-full bg-teal-950 text-teal-300 border border-teal-700 font-bold';
+        }
+      }
+
+      // Atualizar Banner CSC (Crisis Standards of Care)
+      const cscBanner = document.getElementById('csc-banner');
+      const cscTitle = document.getElementById('csc-title');
+      const cscDesc = document.getElementById('csc-desc');
+      if (cscBanner && cscTitle && cscDesc) {
+        cscTitle.textContent = eb.estagio_csc;
+        cscDesc.textContent = eb.descricao_csc;
+        if (eb.cor_csc === 'CRITICO') {
+          cscBanner.className = 'rounded-xl border-2 p-5 bg-rose-950/75 border-rose-600 shadow-lg shadow-rose-950/30';
+        } else if (eb.cor_csc === 'ALERTA') {
+          cscBanner.className = 'rounded-xl border-2 p-5 bg-amber-950/75 border-amber-600 shadow-lg';
+        } else {
+          cscBanner.className = 'rounded-xl border-2 p-5 bg-slate-900 border-teal-700 shadow-lg';
+        }
+      }
+
+      // Renderizar Matriz 4S
+      const grid4s = document.getElementById('matriz-4s-grid');
+      if (grid4s && eb.matriz_4s) {
+        grid4s.innerHTML = eb.matriz_4s.map(item => `
+          <div class="bg-slate-950 border border-slate-800 rounded-xl p-3.5 flex flex-col justify-between">
+            <div>
+              <span class="text-xs font-extrabold uppercase tracking-wider text-teal-400 block">${item.pilar}</span>
+              <p class="text-xs font-bold text-white mt-1.5">${item.status_hro}</p>
+              <p class="text-[11px] text-slate-400 mt-1">${item.diagnostico}</p>
+            </div>
+            <div class="mt-2.5 pt-2 border-t border-slate-800/80 text-[11px] text-teal-300">
+              <strong>Evidência:</strong> ${item.diretriz_literatura}
+            </div>
+          </div>
+        `).join('');
+      }
+
+      // Renderizar Barra Rápida dentro da Sala de Crise (Top 5 protocolos mais urgentes)
+      const quickGrid = document.getElementById('sim-quick-evidencias');
+      if (quickGrid) {
+        const sortedProts = [...eb.protocolos].sort((a, b) => {
+          const score = s => s === 'CRITICO_ACIONAR_AGORA' ? 3 : (s === 'RECOMENDADO_ALERTA' ? 2 : 1);
+          return score(b.status_recomendacao) - score(a.status_recomendacao);
+        }).slice(0, 5);
+
+        quickGrid.innerHTML = sortedProts.map(p => {
+          const isUrgent = p.status_recomendacao === 'CRITICO_ACIONAR_AGORA';
+          const border = isUrgent ? 'border-rose-600 bg-rose-950/40' : 'border-slate-800 bg-slate-950';
+          return `
+            <div class="border ${border} rounded-lg p-3 flex flex-col justify-between text-xs">
+              <div>
+                <div class="flex items-center justify-between gap-1 mb-1">
+                  <span class="text-[10px] font-bold uppercase text-teal-300 truncate">${p.categoria}</span>
+                  ${isUrgent ? '<span class="px-1.5 py-0.5 rounded bg-rose-600 text-white text-[9px] font-extrabold animate-pulse">ACIONAR</span>' : ''}
+                </div>
+                <p class="font-bold text-white leading-snug">${p.titulo}</p>
+                <p class="text-[10px] text-slate-400 mt-1 line-clamp-2">${p.referencia_cientifica}</p>
+              </div>
+              <button onclick="aplicarProtocoloEvidencia('${p.codigo}')" class="mt-2.5 w-full py-1.5 px-2 rounded ${isUrgent ? 'bg-rose-600 hover:bg-rose-500 text-white' : 'bg-teal-700 hover:bg-teal-600 text-white'} font-bold text-[11px] transition">
+                ⚡ Aplicar no HRO
+              </button>
+            </div>
+          `;
+        }).join('');
+      }
+
+      // Renderizar Grid Completo dos 10 Protocolos na Aba 3
+      const protGrid = document.getElementById('evidence-protocols-grid');
+      if (protGrid) {
+        const lista = currentEvidenciaFilter === 'ATIVOS'
+          ? eb.protocolos.filter(p => p.status_recomendacao !== 'DISPONIVEL_PREVENTIVO')
+          : eb.protocolos;
+
+        if (lista.length === 0) {
+          protGrid.innerHTML = `
+            <div class="lg:col-span-2 bg-slate-900 border border-slate-800 rounded-xl p-6 text-center text-xs text-slate-400">
+              Nenhuma crise aguda exigindo intervenção emergencial neste momento. Clique em <strong>"Todos os 10 Protocolos"</strong> acima para visualizar e simular preventivamente qualquer decisão baseada em evidências.
+            </div>
+          `;
+          return;
+        }
+
+        protGrid.innerHTML = lista.map(p => {
+          const isCrit = p.status_recomendacao === 'CRITICO_ACIONAR_AGORA';
+          const isAlert = p.status_recomendacao === 'RECOMENDADO_ALERTA';
+          const borderClass = isCrit
+            ? 'border-2 border-rose-600 bg-slate-900 shadow-lg shadow-rose-950/30'
+            : (isAlert ? 'border-2 border-amber-600 bg-slate-900' : 'border border-slate-800 bg-slate-900');
+
+          const statusBadge = isCrit
+            ? '<span class="px-2.5 py-0.5 rounded bg-rose-600 text-white text-[10px] font-extrabold uppercase animate-pulse">🔥 ACIONAR AGORA (CRISE ATIVA)</span>'
+            : (isAlert
+              ? '<span class="px-2.5 py-0.5 rounded bg-amber-600 text-white text-[10px] font-bold uppercase">⚠️ RECOMENDADO (SOBRECARGA)</span>'
+              : '<span class="px-2.5 py-0.5 rounded bg-slate-800 text-teal-300 border border-slate-700 text-[10px] font-semibold uppercase">🛡️ PRONTIDÃO / PREVENTIVO</span>');
+
+          return `
+            <div class="${borderClass} rounded-xl p-5 flex flex-col justify-between space-y-4">
+              <div class="space-y-2.5">
+                <div class="flex flex-wrap items-center justify-between gap-2">
+                  <span class="text-xs font-bold uppercase px-2 py-0.5 rounded bg-teal-950 text-teal-300 border border-teal-800">
+                    ${p.categoria}
+                  </span>
+                  ${statusBadge}
+                </div>
+
+                <h4 class="text-base font-bold text-white">${p.titulo}</h4>
+
+                <div class="bg-slate-950 border border-slate-800 rounded-lg p-2.5 text-xs space-y-1">
+                  <div class="text-teal-300 font-semibold">📚 Base Científica: <span class="text-slate-200 font-normal">${p.referencia_cientifica}</span></div>
+                  <div class="text-amber-300 font-semibold">🏅 Força da Evidência: <span class="text-slate-200 font-normal">${p.nivel_evidencia}</span></div>
+                </div>
+
+                <div class="text-xs space-y-1.5">
+                  <p class="text-slate-300"><strong class="text-rose-300">📍 Diagnóstico Atual no HRO:</strong> ${p.gatilho_hro}</p>
+                  <p class="text-slate-200"><strong class="text-teal-300">🧠 Decisão Estratégica:</strong> ${p.decisao_estrategica}</p>
+                  <p class="text-emerald-300 font-medium"><strong>✅ Impacto Esperado no Gêmeo Digital:</strong> ${p.impacto_esperado}</p>
+                </div>
+              </div>
+
+              <div class="pt-3 border-t border-slate-800 flex items-center justify-between gap-3">
+                <span class="text-[11px] font-mono text-slate-400">Código: ${p.codigo}</span>
+                <button onclick="aplicarProtocoloEvidencia('${p.codigo}')" class="px-4 py-2 rounded-lg ${isCrit ? 'bg-rose-600 hover:bg-rose-500' : 'bg-teal-600 hover:bg-teal-500'} text-white text-xs font-bold transition shadow-lg">
+                  ⚡ Aplicar Decisão no Gêmeo Digital
+                </button>
+              </div>
+            </div>
+          `;
+        }).join('');
+      }
+    }
+
+    function renderEmergencyBanners(power, pharmacy, kpis, it_system, surgical_center) {
+      const bannerCC = document.getElementById('banner-centro-cirurgico');
+      if (bannerCC) {
+        if (surgical_center && surgical_center.status_fluxo === 'BLOQUEIO_CADEIA_CC_UTI_ENF') {
+          bannerCC.classList.remove('hidden');
+          bannerCC.innerHTML = `
+            <div class="flex flex-wrap items-center justify-between gap-4">
+              <div class="space-y-1">
+                <div class="flex items-center gap-2">
+                  <span class="px-2 py-0.5 rounded bg-fuchsia-600 text-white text-xs font-extrabold uppercase animate-pulse">
+                    🏥 SUPERLOTAÇÃO DO CENTRO CIRÚRGICO & SRPA (${surgical_center.ocupados_srpa}/18 LEITOS) • CIRURGIAS LEITO-DEPENDENTES RETIDAS
+                  </span>
+                  <span class="text-xs font-mono text-fuchsia-200">Salas Cirúrgicas Travadas: <strong>${surgical_center.salas_bloqueadas_pos_op}/${surgical_center.salas_cirurgicas_total}</strong></span>
+                </div>
+                <p class="text-xs text-fuchsia-100">${surgical_center.observacao_cc}</p>
+                <div class="flex flex-wrap gap-4 pt-1 text-xs font-semibold text-white">
+                  <span>🛏️ SRPA (18 Fixos): <strong class="text-rose-300">${surgical_center.ocupados_srpa}/18 ocupados</strong></span>
+                  <span>🫁 Cirurgias Leito-Dependentes s/ Vaga UTI: <strong class="text-amber-300">${surgical_center.cirurgias_leito_dependentes_retidas} pacientes intubados</strong></span>
+                  <span>🚫 Altas da UTI Travadas (0 Leitos Enfermaria): <strong class="text-rose-300">${surgical_center.pacientes_uti_alta_bloqueada} pacientes retidos na UTI</strong></span>
+                  <span>⏸️ Cirurgias Eletivas Suspensas: <strong class="text-fuchsia-300">${surgical_center.cirurgias_eletivas_suspensas}</strong></span>
+                </div>
+              </div>
+              <div class="flex items-center gap-2">
+                <button onclick="abrirPacientesSetor('CC-SRPA')" class="px-3 py-1.5 rounded-lg bg-fuchsia-800 hover:bg-fuchsia-700 text-white text-xs font-semibold border border-fuchsia-500">
+                  💊 Ver Pós-Op Retidos na SRPA
+                </button>
+                <button onclick="dispararSuperlotacaoCC('DESBLOQUEAR_GIRO')" class="px-3 py-1.5 rounded-lg bg-slate-900 hover:bg-slate-800 text-emerald-300 text-xs font-semibold border border-emerald-600">
+                  🔄 Desbloquear Giro (Enf → UTI → SRPA)
+                </button>
+              </div>
+            </div>
+          `;
+        } else {
+          bannerCC.classList.add('hidden');
+        }
+      }
+
+      const bannerEq = document.getElementById('banner-equipamentos');
+      if (bannerEq) {
+        if ((kpis.deficit_ventiladores || 0) > 0 || (kpis.deficit_monitores || 0) > 0) {
+          bannerEq.classList.remove('hidden');
+          bannerEq.innerHTML = `
+            <div class="flex flex-wrap items-center justify-between gap-4">
+              <div class="space-y-1">
+                <div class="flex items-center gap-2">
+                  <span class="px-2 py-0.5 rounded bg-orange-600 text-white text-xs font-extrabold uppercase animate-pulse">
+                    📟 QUANTITATIVO INSUFICIENTE DE MONITORES MULTIPARAMÉTRICOS E/OU VENTILADORES MECÂNICOS
+                  </span>
+                </div>
+                <p class="text-xs text-orange-100">
+                  A demanda ativa de pacientes graves/intubados ultrapassou o parque operacional disponível. Necessário uso de aparelhos de anestesia/ventiladores de transporte e remanejamento emergencial.
+                </p>
+                <div class="flex flex-wrap gap-4 pt-1 text-xs font-semibold text-white">
+                  <span>🫁 Déficit de Ventiladores (VM): <strong class="text-rose-300">Faltam ${kpis.deficit_ventiladores} VM</strong> (${kpis.ventiladores_em_uso} necessários vs ${kpis.ventiladores_disponiveis} disp. / ${kpis.ventiladores_inoperantes} em falta/manut.)</span>
+                  <span>📟 Déficit de Monitores Multiparamétricos: <strong class="text-amber-300">Faltam ${kpis.deficit_monitores} Monitores</strong> (${kpis.monitores_em_uso} necessários vs ${kpis.monitores_disponiveis} disp. / ${kpis.monitores_inoperantes} em falta/manut.)</span>
+                </div>
+              </div>
+              <button onclick="normalizarEquipamentos()" class="px-3 py-1.5 rounded-lg bg-orange-800 hover:bg-orange-700 text-white text-xs font-semibold border border-orange-500">
+                🔧 Recompor Ventiladores & Monitores
+              </button>
+            </div>
+          `;
+        } else {
+          bannerEq.classList.add('hidden');
+        }
+      }
+
+      const bannerTI = document.getElementById('banner-sistema-ti');
+      if (bannerTI) {
+        if (it_system && it_system.status_sistema === 'QUEDA_INDETERMINADA') {
+          bannerTI.classList.remove('hidden');
+          bannerTI.innerHTML = `
+            <div class="flex flex-wrap items-center justify-between gap-4">
+              <div class="space-y-1">
+                <div class="flex items-center gap-2">
+                  <span class="px-2 py-0.5 rounded bg-purple-600 text-white text-xs font-extrabold uppercase animate-pulse">
+                    🖥️ QUEDA DO SISTEMA INFORMATIZADO • SEM PREVISÃO DE RETORNO
+                  </span>
+                  <span class="text-xs font-mono text-purple-200">Janela Offline: <strong>${it_system.horas_sem_sistema}h (Sem ETA)</strong></span>
+                </div>
+                <p class="text-xs text-purple-100"><strong>Causa:</strong> ${it_system.causa_queda} • <strong>Módulos Afetados:</strong> ${it_system.modulos_afetados}</p>
+                <p class="text-xs text-purple-200/90">${it_system.observacao_ti}</p>
+                <div class="flex flex-wrap gap-4 pt-1 text-xs font-semibold text-white">
+                  <span>📄 Modo Operacional: <strong class="text-amber-300">CONTINGÊNCIA EM PAPEL (MANUAL)</strong></span>
+                  <span>📝 Prescrições em Papel no Turno: <strong class="text-rose-300">${it_system.prescricoes_papel_pendentes} formulários</strong></span>
+                  <span>⚠️ Risco de Erro de Transcrição/Aprazamento: <strong class="text-rose-300">${it_system.risco_erro_transcricao}</strong></span>
+                </div>
+              </div>
+              <div class="flex items-center gap-2">
+                <button onclick="switchTab('pep')" class="px-3 py-1.5 rounded-lg bg-purple-800 hover:bg-purple-700 text-white text-xs font-semibold border border-purple-500">
+                  🖨️ Formulários de Contingência PEP
+                </button>
+                <button onclick="restaurarSistemaTI()" class="px-3 py-1.5 rounded-lg bg-slate-900 hover:bg-slate-800 text-emerald-300 text-xs font-semibold border border-emerald-600">
+                  ✅ Restaurar Sistema Online
+                </button>
+              </div>
+            </div>
+          `;
+        } else {
+          bannerTI.classList.add('hidden');
+        }
+      }
+
+      const bannerPwr = document.getElementById('banner-energia');
+      if (power.rede_externa === 'QUEDA_INDETERMINADA') {
+        bannerPwr.classList.remove('hidden');
+        const isTotal = power.status_geradores === 'FALHA_TOTAL';
+        bannerPwr.className = isTotal
+          ? "rounded-xl border-2 border-red-600 bg-red-950/90 p-4 no-print shadow-lg shadow-red-950/50"
+          : "rounded-xl border border-amber-600 bg-amber-950/80 p-4 no-print";
+        bannerPwr.innerHTML = `
+          <div class="flex flex-wrap items-center justify-between gap-4">
+            <div class="space-y-1">
+              <div class="flex items-center gap-2">
+                <span class="px-2 py-0.5 rounded bg-red-600 text-white text-xs font-extrabold uppercase animate-pulse">
+                  ⚡ ${isTotal ? 'BLACKOUT TOTAL + FALHA DE GERADORES' : 'QUEDA DE REDE + FALHA PARCIAL DE GERADOR'}
+                </span>
+                <span class="text-xs font-mono text-red-200">Tempo sem energia: <strong>${power.tempo_sem_energia_min} min</strong></span>
+              </div>
+              <p class="text-xs text-red-100">${power.observacao_contingencia}</p>
+              <div class="flex flex-wrap gap-4 pt-1 text-xs font-semibold text-white">
+                <span>🔋 Autonomia Bateria Ventiladores (VM): <strong class="text-amber-300">${power.autonomia_restante_vm_min} min</strong></span>
+                <span>💉 Autonomia Bateria Bombas Infusão (BIC): <strong class="text-amber-300">${power.autonomia_restante_bic_min} min</strong></span>
+                <span>🫁 Pacientes Intubados Exigindo Ambu 1:1: <strong class="text-rose-300">${power.pacientes_dependentes_vm}</strong></span>
+                <span>❤️ Pacientes em Droga Vasoativa: <strong class="text-rose-300">${power.pacientes_dependentes_bic_dva}</strong></span>
+              </div>
+            </div>
+            <button onclick="normalizarEnergia()" class="px-3 py-1.5 rounded-lg bg-red-800 hover:bg-red-700 text-white text-xs font-semibold border border-red-500">
+              🔌 Restabelecer Energia/Geradores
+            </button>
+          </div>
+        `;
+      } else {
+        bannerPwr.classList.add('hidden');
+      }
+
+      const bannerFarm = document.getElementById('banner-farmacia');
+      const emFalta = (pharmacy || []).filter(m => m.status_estoque !== 'NORMAL');
+      if (emFalta.length > 0) {
+        bannerFarm.classList.remove('hidden');
+        bannerFarm.innerHTML = `
+          <div class="flex flex-wrap items-center justify-between gap-3">
+            <div>
+              <span class="text-xs font-bold text-amber-300 uppercase">🧪 Alerta de Ruptura Farmacêutica (${emFalta.length} medicamento(s) em falta/crítico • ${kpis.pacientes_afetados_farmacia} pacientes impactados):</span>
+              <p class="text-xs text-amber-100 mt-0.5">
+                ${emFalta.map(m => `<strong>${m.termo_chave}</strong> (${m.status_estoque === 'FALTA_TOTAL' ? 'Falta Total 0h' : 'Crítico <12h'} → Substituir por: <em>${m.alternativa_terapeutica}</em>)`).join(' • ')}
+              </p>
+            </div>
+            <button onclick="switchTab('pep')" class="px-3 py-1.5 rounded-lg bg-amber-700 hover:bg-amber-600 text-white text-xs font-semibold">
+              Ver Prescrições Afetadas →
+            </button>
+          </div>
+        `;
+      } else {
+        bannerFarm.classList.add('hidden');
+      }
+    }
+
+    function renderKPIs(k, power, it_system) {
+      document.getElementById('kpi-ocupacao').textContent = `${k.taxa_ocupacao_fixos || k.taxa_ocupacao_global}%`;
+      document.getElementById('kpi-leitos-detalhe').textContent = `${k.fixos_ocupados || k.total_ocupados}/${k.fixos_instalados || 340} fixos`;
+      const elApoio = document.getElementById('kpi-apoio-detalhe');
+      if (elApoio) {
+        elApoio.textContent = `PS Apoio: ${k.ps_apoio_ocupados} pac • SRPA: ${k.srpa_ocupados}/${k.srpa_instalados || 18}`;
+      }
+      const bar = document.getElementById('bar-ocupacao');
+      const txFixos = k.taxa_ocupacao_fixos || k.taxa_ocupacao_global;
+      bar.style.width = `${Math.min(100, txFixos)}%`;
+      bar.className = txFixos >= 100 ? 'bg-rose-500 h-full transition-all' : (txFixos >= 90 ? 'bg-amber-500 h-full transition-all' : 'bg-teal-500 h-full transition-all');
+
+      document.getElementById('kpi-criticos').textContent = k.total_criticos;
+      document.getElementById('kpi-dva').textContent = `${k.total_dva} em DVA`;
+      document.getElementById('kpi-bloqueados').textContent = `${k.total_bloqueados} leitos bloqueados`;
+
+      document.getElementById('kpi-ventiladores').textContent = `VM ${k.ventiladores_em_uso}/${k.ventiladores_disponiveis}`;
+      const elMon = document.getElementById('kpi-monitores');
+      if (elMon) {
+        elMon.textContent = `Mon ${k.monitores_em_uso}/${k.monitores_disponiveis}`;
+      }
+      const elEqStatus = document.getElementById('kpi-vent-livre');
+      if ((k.deficit_ventiladores || 0) > 0 || (k.deficit_monitores || 0) > 0) {
+        elEqStatus.textContent = `Déficit: -${k.deficit_ventiladores} VM / -${k.deficit_monitores} Mon`;
+        elEqStatus.className = 'text-[10px] font-bold text-rose-400 mt-1.5 animate-pulse';
+      } else {
+        elEqStatus.textContent = `Livre: ${Math.max(0, k.ventiladores_disponiveis - k.ventiladores_em_uso)} VM • ${Math.max(0, k.monitores_disponiveis - k.monitores_em_uso)} Mon`;
+        elEqStatus.className = 'text-[10px] text-emerald-400 mt-1.5';
+      }
+
+      document.getElementById('kpi-rh-enf').textContent = `${k.enfermeiros_atual}E / ${k.tecnicos_atual}T`;
+      const defTotal = k.deficit_enfermeiros + k.deficit_tecnicos + k.deficit_medicos;
+      const elDef = document.getElementById('kpi-deficit-rh');
+      if (defTotal > 0) {
+        elDef.textContent = `-${defTotal} prof.`;
+        elDef.className = 'text-[11px] font-semibold text-rose-400';
+      } else {
+        elDef.textContent = 'OK';
+        elDef.className = 'text-[11px] font-semibold text-emerald-400';
+      }
+
+      const elFarm = document.getElementById('kpi-farmacia');
+      elFarm.textContent = `${k.meds_em_falta_count} itens`;
+      elFarm.className = k.meds_em_falta_count > 0 ? 'text-xl font-bold text-rose-400' : 'text-xl font-bold text-emerald-400';
+      document.getElementById('kpi-farmacia-pac').textContent = `${k.pacientes_afetados_farmacia} pac.`;
+
+      const elPwr = document.getElementById('kpi-energia');
+      if (power.rede_externa === 'QUEDA_INDETERMINADA' && power.status_geradores === 'FALHA_TOTAL') {
+        elPwr.textContent = 'BLACKOUT';
+        elPwr.className = 'text-sm font-bold text-rose-400 animate-pulse';
+      } else if (power.rede_externa === 'QUEDA_INDETERMINADA') {
+        elPwr.textContent = 'FALHA PARC.';
+        elPwr.className = 'text-sm font-bold text-amber-400';
+      } else {
+        elPwr.textContent = 'NORMAL';
+        elPwr.className = 'text-sm font-bold text-emerald-400';
+      }
+      document.getElementById('kpi-bateria').textContent = `Bat VM: ${power.autonomia_restante_vm_min}m`;
+
+      const elTI = document.getElementById('kpi-ti');
+      const elTIPapel = document.getElementById('kpi-ti-papel');
+      if (elTI && elTIPapel) {
+        if (it_system && it_system.status_sistema === 'QUEDA_INDETERMINADA') {
+          elTI.textContent = 'FORA DO AR';
+          elTI.className = 'text-sm font-bold text-purple-400 animate-pulse';
+          elTIPapel.textContent = `Papel (${it_system.prescricoes_papel_pendentes})`;
+          elTIPapel.className = 'text-[11px] font-semibold text-amber-300';
+        } else {
+          elTI.textContent = 'ONLINE';
+          elTI.className = 'text-sm font-bold text-emerald-400';
+          elTIPapel.textContent = 'Digital';
+          elTIPapel.className = 'text-[11px] text-slate-400';
+        }
+      }
+
+      document.getElementById('kpi-altas').textContent = `${k.total_altas_seguras} pré-alta`;
+      document.getElementById('kpi-risco').textContent = `${k.risco_global}/100`;
+
+      const badge = document.getElementById('badge-contingencia');
+      badge.textContent = k.nivel_contingencia;
+      if (k.nivel_contingencia.includes('NÍVEL 3')) {
+        badge.className = 'px-3 py-1.5 rounded-lg text-xs font-bold border bg-rose-950 text-rose-300 border-rose-700 animate-pulse';
+      } else if (k.nivel_contingencia.includes('NÍVEL 2')) {
+        badge.className = 'px-3 py-1.5 rounded-lg text-xs font-bold border bg-amber-950 text-amber-300 border-amber-700';
+      } else {
+        badge.className = 'px-3 py-1.5 rounded-lg text-xs font-bold border bg-emerald-950 text-emerald-300 border-emerald-700';
+      }
+    }
+
+    function renderTopAreas(areas) {
+      const container = document.getElementById('top-areas-list');
+      container.innerHTML = (areas || []).slice(0, 5).map((a, i) => {
+        const badgeClass = a.taxa_ocupacao > 100
+          ? 'bg-rose-950 text-rose-300 border-rose-800'
+          : (a.taxa_ocupacao >= 90 ? 'bg-amber-950 text-amber-300 border-amber-800' : 'bg-teal-950 text-teal-300 border-teal-800');
+        return `
+          <div class="flex items-center justify-between bg-slate-950 border border-slate-800/90 rounded-lg px-3 py-2 text-xs">
+            <div class="flex items-center gap-2 truncate">
+              <span class="font-mono font-bold text-slate-400">#${i + 1}</span>
+              <span class="font-semibold text-white truncate">${a.nome}</span>
+            </div>
+            <div class="flex items-center gap-2 shrink-0">
+              <span class="text-slate-400">${a.ocupados}/${a.operacionais} leitos</span>
+              <span class="px-2 py-0.5 rounded border font-bold ${badgeClass}">${a.taxa_ocupacao}%</span>
+            </div>
+          </div>
+        `;
+      }).join('');
+    }
+
+    function renderRecommendations(recs) {
+      const container = document.getElementById('recommendations-list');
+      container.innerHTML = recs.map(r => {
+        const badgeColor = r.prioridade === 'CRÍTICA' ? 'bg-rose-950 text-rose-300 border-rose-800' : (r.prioridade === 'ALTA' ? 'bg-amber-950 text-amber-300 border-amber-800' : 'bg-teal-950 text-teal-300 border-teal-800');
+        return `
+          <div class="bg-slate-950 border border-slate-800/90 rounded-lg p-3 flex flex-col justify-between">
+            <div>
+              <div class="flex items-center justify-between gap-2 mb-1">
+                <span class="text-xs font-bold text-white">${r.setor}</span>
+                <span class="text-[10px] px-2 py-0.5 rounded border font-bold ${badgeColor}">${r.prioridade}</span>
+              </div>
+              <p class="text-xs font-semibold text-slate-200">${r.acao}</p>
+              <p class="text-xs text-slate-400 mt-1">${r.detalhe}</p>
+            </div>
+          </div>
+        `;
+      }).join('');
+    }
+
+    function renderSectors(sectors) {
+      const grid = document.getElementById('sectors-grid');
+      grid.innerHTML = sectors.map(s => {
+        const borderClass = s.nivel_alerta === 'CRITICO' ? 'border-rose-800/80' : (s.nivel_alerta === 'ALERTA' ? 'border-amber-800/80' : 'border-slate-800');
+        const badgeAlert = s.nivel_alerta === 'CRITICO'
+          ? '<span class="px-2 py-0.5 text-[10px] font-bold rounded bg-rose-950 text-rose-300 border border-rose-800">CRÍTICO / SATURADO</span>'
+          : (s.nivel_alerta === 'ALERTA'
+            ? '<span class="px-2 py-0.5 text-[10px] font-bold rounded bg-amber-950 text-amber-300 border border-amber-800">ALERTA ASSISTENCIAL</span>'
+            : '<span class="px-2 py-0.5 text-[10px] font-bold rounded bg-emerald-950 text-emerald-300 border border-emerald-800">ESTÁVEL</span>');
+
+        const catBadge = s.categoria_leito === 'APOIO_PS'
+          ? '<span class="text-[10px] px-1.5 py-0.5 rounded bg-sky-950 text-sky-300 border border-sky-800 font-semibold">LEITOS DE APOIO PS</span>'
+          : (s.categoria_leito === 'APOIO_SRPA'
+            ? '<span class="text-[10px] px-1.5 py-0.5 rounded bg-fuchsia-950 text-fuchsia-300 border border-fuchsia-800 font-semibold">SRPA (18 FIXOS)</span>'
+            : '<span class="text-[10px] px-1.5 py-0.5 rounded bg-slate-800 text-teal-300 border border-slate-700">LEITO FIXO (340)</span>');
+
+        const barColor = s.taxa_ocupacao > 100 ? 'bg-rose-500' : (s.taxa_ocupacao >= 90 ? 'bg-amber-500' : 'bg-teal-500');
+
+        const equipDeficitHtml = (s.deficit_ventiladores > 0 || s.deficit_monitores > 0)
+          ? `<span class="block text-[10px] font-bold text-rose-400">⚠️ Falta: ${s.deficit_ventiladores > 0 ? `-${s.deficit_ventiladores} VM ` : ''}${s.deficit_monitores > 0 ? `-${s.deficit_monitores} Mon` : ''}</span>`
+          : `<span class="block text-[10px] text-slate-400">${s.pacientes_criticos} crít. • ${s.elegiveis_alta_segura} pré-alta</span>`;
+
+        return `
+          <div class="bg-slate-900 border ${borderClass} rounded-xl p-4 flex flex-col justify-between shadow-sm">
+            <div>
+              <div class="flex items-start justify-between gap-2">
+                <div>
+                  <div class="flex items-center gap-1.5 mb-0.5">
+                    <span class="text-[11px] font-mono text-teal-400">${s.codigo}</span>
+                    ${catBadge}
+                  </div>
+                  <h3 class="font-bold text-sm text-white">${s.nome}</h3>
+                </div>
+                ${badgeAlert}
+              </div>
+
+              <div class="mt-3">
+                <div class="flex justify-between text-xs mb-1">
+                  <span class="text-slate-300 font-medium">Ocupados: <strong>${s.ocupados_atual}</strong> / ${s.leitos_operacionais} op. (${s.leitos_bloqueados} bloq)</span>
+                  <span class="font-bold ${s.taxa_ocupacao > 100 ? 'text-rose-400' : 'text-white'}">${s.taxa_ocupacao}%</span>
+                </div>
+                <div class="w-full bg-slate-800 h-2 rounded-full overflow-hidden">
+                  <div class="${barColor} h-full" style="width: ${Math.min(100, s.taxa_ocupacao)}%"></div>
+                </div>
+              </div>
+
+              <div class="grid grid-cols-2 gap-2 mt-3 bg-slate-950/90 rounded-lg p-2.5 border border-slate-800/80 text-xs">
+                <div>
+                  <span class="text-slate-400 block text-[11px]">Médicos / Enf / Téc</span>
+                  <span class="font-semibold text-white">${s.medicos_turno}M • ${s.enfermeiros_turno}E • ${s.tecnicos_turno}T</span>
+                  ${(s.deficit_enfermeiros + s.deficit_tecnicos) > 0
+                    ? `<span class="block text-[10px] text-rose-400">Déficit: -${s.deficit_enfermeiros}E / -${s.deficit_tecnicos}T</span>`
+                    : `<span class="block text-[10px] text-emerald-400">RDC-7/COFEN OK</span>`}
+                </div>
+                <div>
+                  <span class="text-slate-400 block text-[11px]">VM & Monitores Disp.</span>
+                  <span class="font-semibold ${s.deficit_ventiladores > 0 ? 'text-rose-400' : 'text-sky-300'}">${s.ventiladores_em_uso}/${s.ventiladores_disponiveis} VM</span>
+                  <span class="text-slate-500">•</span>
+                  <span class="font-semibold ${s.deficit_monitores > 0 ? 'text-amber-300' : 'text-indigo-300'}">${s.monitores_em_uso}/${s.monitores_disponiveis} Mon</span>
+                  ${equipDeficitHtml}
+                </div>
+              </div>
+
+              <div class="mt-2.5 flex items-center justify-between text-[11px] text-slate-400">
+                <span>Relação: <strong>${s.relacao_pac_tecnico} pac/téc</strong></span>
+                <span class="${s.atraso_aprazamento_min >= 20 ? 'text-rose-400 font-semibold' : 'text-slate-400'}">
+                  Atraso Aprazamento: +${s.atraso_aprazamento_min} min
+                </span>
+              </div>
+            </div>
+
+            <div class="flex gap-2 mt-4 pt-3 border-t border-slate-800">
+              <button onclick="abrirPacientesSetor('${s.codigo}')" class="flex-1 py-1.5 px-2.5 rounded-lg bg-slate-800 hover:bg-slate-700 text-xs font-medium text-teal-300 transition">
+                💊 Ver Pacientes (${s.ocupados_atual})
+              </button>
+              <button onclick='abrirModalSetor(${JSON.stringify(s)})' class="py-1.5 px-2.5 rounded-lg bg-slate-950 hover:bg-slate-800 border border-slate-700 text-xs text-slate-300 transition">
+                ⚙️ Calibrar
+              </button>
+            </div>
+          </div>
+        `;
+      }).join('');
+    }
+
+    function renderPharmacyTable(pharmacy) {
+      const tbody = document.getElementById('pharmacy-table-body');
+      if (!tbody) return;
+      tbody.innerHTML = (pharmacy || []).map(m => {
+        const badge = m.status_estoque === 'FALTA_TOTAL'
+          ? '<span class="px-2 py-0.5 rounded bg-rose-950 text-rose-300 border border-rose-700 font-bold">🚨 FALTA TOTAL (0h)</span>'
+          : (m.status_estoque === 'CRITICO_12H'
+            ? '<span class="px-2 py-0.5 rounded bg-amber-950 text-amber-300 border border-amber-700 font-bold">⚠️ CRÍTICO (&lt;12h)</span>'
+            : '<span class="px-2 py-0.5 rounded bg-emerald-950 text-emerald-300 border border-emerald-800">Normal</span>');
+        return `
+          <tr class="hover:bg-slate-950/60">
+            <td class="py-2 px-2">
+              <span class="font-bold text-white block">${m.termo_chave}</span>
+              <span class="text-[10px] text-slate-400">${m.classe_terapeutica} • ${m.criticidade}</span>
+            </td>
+            <td class="py-2 px-2">${badge}</td>
+            <td class="py-2 px-2 text-slate-300">${m.alternativa_terapeutica}</td>
+            <td class="py-2 px-2 text-right space-x-1">
+              <button onclick="simularFaltaMed('${m.termo_chave}', 'FALTA_TOTAL', 0)" class="px-2 py-1 rounded bg-rose-700 hover:bg-rose-600 text-white text-[11px] font-semibold">
+                Falta Total
+              </button>
+              <button onclick="simularFaltaMed('${m.termo_chave}', 'CRITICO_12H', 8)" class="px-2 py-1 rounded bg-amber-700 hover:bg-amber-600 text-white text-[11px] font-semibold">
+                &lt;12h
+              </button>
+              ${m.status_estoque !== 'NORMAL' ? `
+                <button onclick="substituirMedEmMassa('${m.termo_chave}')" class="px-2 py-1 rounded bg-teal-700 hover:bg-teal-600 text-white text-[11px] font-semibold">
+                  Substituir PEP
+                </button>
+                <button onclick="simularFaltaMed('${m.termo_chave}', 'NORMAL', 120)" class="px-2 py-1 rounded bg-slate-700 hover:bg-slate-600 text-slate-200 text-[11px]">
+                  Repor
+                </button>
+              ` : ''}
+            </td>
+          </tr>
+        `;
+      }).join('');
+    }
+
+    function renderEvents(events) {
+      const container = document.getElementById('events-timeline');
+      if (!events || events.length === 0) {
+        container.innerHTML = `<div class="text-xs text-slate-500 py-4 text-center">Nenhum evento de contingência disparado nesta sessão.</div>`;
+        return;
+      }
+      container.innerHTML = events.map(ev => {
+        const color = ev.severidade === 'CRITICO' ? 'border-rose-800 bg-rose-950/30' : (ev.severidade === 'ALERTA' ? 'border-amber-800 bg-amber-950/30' : 'border-emerald-800 bg-emerald-950/30');
+        return `
+          <div class="border ${color} rounded-lg p-3 flex items-start justify-between gap-4">
+            <div>
+              <div class="flex items-center gap-2">
+                <span class="text-xs font-bold text-white">${ev.titulo}</span>
+                <span class="text-[10px] font-mono text-slate-400">${ev.criado_em}</span>
+              </div>
+              <p class="text-xs text-slate-300 mt-1">${ev.descricao}</p>
+            </div>
+          </div>
+        `;
+      }).join('');
+    }
+
+    async function aplicarPerfilOcupacao() {
+      const perfil = document.getElementById('ocup-perfil').value;
+      const fator_global_pct = parseInt(document.getElementById('ocup-fator').value, 10);
+      await fetch('/api/simulate/ocupacao', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ perfil, fator_global_pct })
+      });
+      await carregarDashboard();
+    }
+
+    function abrirModalMatrizOcupacao() {
+      if (!currentDashboard) return;
+      const rows = document.getElementById('matriz-ocupacao-rows');
+      rows.innerHTML = currentDashboard.sectors.map(s => `
+        <div class="grid grid-cols-12 items-center gap-3 bg-slate-950 border border-slate-800 rounded-lg p-2.5 text-xs">
+          <div class="col-span-6">
+            <span class="font-mono text-teal-400 font-bold">${s.codigo}</span> — <strong class="text-white">${s.nome}</strong>
+            <span class="block text-[10px] text-slate-400">Capacidade instalada: ${s.leitos_instalados} leitos (${s.categoria_leito})</span>
+          </div>
+          <div class="col-span-3">
+            <label class="block text-[10px] text-slate-400 mb-0.5">Pacientes Ocupados</label>
+            <input type="number" min="0" max="200" value="${s.ocupados_atual}" data-sec-id="${s.id}" class="mat-ocup-input w-full bg-slate-900 border border-slate-700 rounded px-2 py-1 text-white font-bold" />
+          </div>
+          <div class="col-span-3">
+            <label class="block text-[10px] text-slate-400 mb-0.5">Leitos Bloqueados</label>
+            <input type="number" min="0" max="50" value="${s.leitos_bloqueados}" data-sec-bloq="${s.id}" class="w-full bg-slate-900 border border-slate-700 rounded px-2 py-1 text-white" />
+          </div>
+        </div>
+      `).join('');
+      const modal = document.getElementById('modal-matriz-ocupacao');
+      modal.classList.remove('hidden');
+      modal.classList.add('flex');
+    }
+
+    function fecharModalMatrizOcupacao() {
+      const modal = document.getElementById('modal-matriz-ocupacao');
+      modal.classList.add('hidden');
+      modal.classList.remove('flex');
+    }
+
+    async function salvarMatrizOcupacao() {
+      const inputs = document.querySelectorAll('.mat-ocup-input');
+      const setores_custom = Array.from(inputs).map(inp => {
+        const id = parseInt(inp.getAttribute('data-sec-id'), 10);
+        const bloqEl = document.querySelector(`[data-sec-bloq="${id}"]`);
+        return {
+          id,
+          ocupados_atual: parseInt(inp.value, 10) || 0,
+          leitos_bloqueados: parseInt(bloqEl.value, 10) || 0
+        };
+      });
+      await fetch('/api/simulate/ocupacao', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ perfil: 'CUSTOM', fator_global_pct: 100, setores_custom })
+      });
+      fecharModalMatrizOcupacao();
+      await carregarDashboard();
+    }
+
+    async function simularFaltaMed(termo_chave, status_estoque, autonomia_horas, alternativa_custom = null) {
+      await fetch('/api/simulate/farmacia', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ termo_chave, status_estoque, autonomia_horas, alternativa_custom })
+      });
+      await carregarDashboard();
+      if (selectedPatientId && !document.getElementById('tab-pep').classList.contains('hidden')) {
+        await selecionarPaciente(selectedPatientId);
+      }
+    }
+
+    async function adicionarFaltaCustom() {
+      const nome = document.getElementById('custom-med-nome').value.trim();
+      const alt = document.getElementById('custom-med-alt').value.trim();
+      if (!nome) return;
+      await simularFaltaMed(nome, 'FALTA_TOTAL', 0, alt || 'Substituto padronizado pela CFT');
+      document.getElementById('custom-med-nome').value = '';
+      document.getElementById('custom-med-alt').value = '';
+    }
+
+    async function substituirMedEmMassa(termo_chave) {
+      await fetch('/api/simulate/farmacia/substituir', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ termo_chave })
+      });
+      await carregarDashboard();
+      if (selectedPatientId) {
+        await selecionarPaciente(selectedPatientId);
+      }
+    }
+
+    async function substituirMedItem(itemId) {
+      await fetch('/api/simulate/farmacia/substituir', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ item_id: itemId })
+      });
+      await carregarDashboard();
+      if (selectedPatientId) {
+        await selecionarPaciente(selectedPatientId);
+      }
+    }
+
+    async function dispararCriseEnergia() {
+      const rede_externa = document.getElementById('pwr-rede').value;
+      const status_geradores = document.getElementById('pwr-gerador').value;
+      const tempo_sem_energia_min = parseInt(document.getElementById('pwr-tempo').value, 10);
+      await fetch('/api/simulate/energia', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ rede_externa, status_geradores, tempo_sem_energia_min })
+      });
+      await carregarDashboard();
+    }
+
+    async function normalizarEnergia() {
+      await fetch('/api/simulate/energia', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ rede_externa: 'NORMAL', status_geradores: 'STANDBY_OK', tempo_sem_energia_min: 0 })
+      });
+      await carregarDashboard();
+    }
+
+    async function dispararQuedaSistemaTI() {
+      const causa_queda = document.getElementById('ti-causa').value;
+      const modulos_afetados = document.getElementById('ti-modulos').value;
+      const horas_sem_sistema = parseInt(document.getElementById('ti-horas').value, 10);
+      await fetch('/api/simulate/sistema-ti', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          status_sistema: 'QUEDA_INDETERMINADA',
+          causa_queda,
+          modulos_afetados,
+          horas_sem_sistema
+        })
+      });
+      await carregarDashboard();
+      if (selectedPatientId && !document.getElementById('tab-pep').classList.contains('hidden')) {
+        await selecionarPaciente(selectedPatientId);
+      }
+    }
+
+    async function restaurarSistemaTI() {
+      await fetch('/api/simulate/sistema-ti', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          status_sistema: 'ONLINE',
+          causa_queda: 'Nenhuma',
+          modulos_afetados: 'Nenhum',
+          horas_sem_sistema: 0
+        })
+      });
+      await carregarDashboard();
+      if (selectedPatientId && !document.getElementById('tab-pep').classList.contains('hidden')) {
+        await selecionarPaciente(selectedPatientId);
+      }
+    }
+
+    async function dispararSuperlotacaoCC(acao) {
+      const cirurgias_leito_dependentes = parseInt(document.getElementById('cc-leito-dep').value, 10) || 6;
+      const pacientes_uti_alta_bloqueada = parseInt(document.getElementById('cc-uti-bloq').value, 10) || 8;
+      const salas_bloqueadas = parseInt(document.getElementById('cc-salas-bloq').value, 10) || 4;
+      await fetch('/api/simulate/centro-cirurgico', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          acao,
+          cirurgias_leito_dependentes,
+          pacientes_uti_alta_bloqueada,
+          salas_bloqueadas
+        })
+      });
+      await carregarDashboard();
+      if (!document.getElementById('tab-pep').classList.contains('hidden')) {
+        await carregarPacientes();
+      }
+    }
+
+    async function dispararCriseEquipamentos() {
+      const cenario = document.getElementById('eq-cenario').value;
+      const setor_alvo = document.getElementById('eq-setor').value;
+      const ventiladores_inop = parseInt(document.getElementById('eq-vm-inop').value, 10) || 8;
+      const monitores_inop = parseInt(document.getElementById('eq-mon-inop').value, 10) || 18;
+      await fetch('/api/simulate/equipamentos', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          cenario,
+          setor_alvo,
+          ventiladores_inop,
+          monitores_inop
+        })
+      });
+      await carregarDashboard();
+    }
+
+    async function normalizarEquipamentos() {
+      await fetch('/api/simulate/equipamentos', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          cenario: 'NORMALIZAR',
+          setor_alvo: 'TODOS',
+          ventiladores_inop: 0,
+          monitores_inop: 0
+        })
+      });
+      await carregarDashboard();
+    }
+
+    function abrirModalSetor(s) {
+      document.getElementById('modal-sector-id').value = s.id;
+      document.getElementById('modal-sector-title').textContent = `Calibrar: ${s.nome}`;
+      document.getElementById('mod-ocupados').value = s.ocupados_atual;
+      document.getElementById('mod-bloqueados').value = s.leitos_bloqueados;
+      document.getElementById('mod-medicos').value = s.medicos_turno;
+      document.getElementById('mod-enfermeiros').value = s.enfermeiros_turno;
+      document.getElementById('mod-tecnicos').value = s.tecnicos_turno;
+      document.getElementById('mod-ventiladores').value = s.ventiladores_em_uso;
+      document.getElementById('mod-vent-inop').value = s.ventiladores_inoperantes || 0;
+      document.getElementById('mod-monitores').value = s.monitores_em_uso || s.ocupados_atual;
+      document.getElementById('mod-mon-inop').value = s.monitores_inoperantes || 0;
+      const modal = document.getElementById('modal-sector');
+      modal.classList.remove('hidden');
+      modal.classList.add('flex');
+    }
+
+    function fecharModalSetor() {
+      const modal = document.getElementById('modal-sector');
+      modal.classList.add('hidden');
+      modal.classList.remove('flex');
+    }
+
+    async function salvarCalibracaoSetor() {
+      const id = document.getElementById('modal-sector-id').value;
+      const payload = {
+        ocupados_atual: parseInt(document.getElementById('mod-ocupados').value, 10),
+        leitos_bloqueados: parseInt(document.getElementById('mod-bloqueados').value, 10),
+        medicos_turno: parseInt(document.getElementById('mod-medicos').value, 10),
+        enfermeiros_turno: parseInt(document.getElementById('mod-enfermeiros').value, 10),
+        tecnicos_turno: parseInt(document.getElementById('mod-tecnicos').value, 10),
+        ventiladores_em_uso: parseInt(document.getElementById('mod-ventiladores').value, 10),
+        ventiladores_inoperantes: parseInt(document.getElementById('mod-vent-inop').value, 10) || 0,
+        monitores_em_uso: parseInt(document.getElementById('mod-monitores').value, 10) || 0,
+        monitores_inoperantes: parseInt(document.getElementById('mod-mon-inop').value, 10) || 0,
+      };
+      await fetch(`/api/sectors/${id}/update`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify(payload)
+      });
+      fecharModalSetor();
+      await carregarDashboard();
+    }
+
+    async function dispararIMV() {
+      const num_vitimas = parseInt(document.getElementById('imv-vitimas').value, 10);
+      const descricao = document.getElementById('imv-desc').value;
+      await fetch('/api/simulate/imv', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ num_vitimas, descricao })
+      });
+      await carregarDashboard();
+    }
+
+    async function dispararRH() {
+      const percentual_absenteismo = parseInt(document.getElementById('rh-perc').value, 10);
+      const setor_alvo = document.getElementById('rh-setor').value;
+      const motivo = document.getElementById('rh-motivo').value;
+      await fetch('/api/simulate/rh', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ percentual_absenteismo, motivo, setor_alvo })
+      });
+      await carregarDashboard();
+    }
+
+    async function dispararIntercorrencia(tipo) {
+      await fetch('/api/simulate/intercorrencia', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ tipo })
+      });
+      await carregarDashboard();
+    }
+
+    async function executarMitigacao() {
+      await fetch('/api/simulate/mitigate', { method: 'POST' });
+      await carregarDashboard();
+      if (!document.getElementById('tab-pep').classList.contains('hidden')) {
+        carregarPacientes();
+      }
+    }
+
+    async function resetarSimulacao() {
+      await fetch('/api/simulate/reset', { method: 'POST' });
+      await carregarDashboard();
+      if (!document.getElementById('tab-pep').classList.contains('hidden')) {
+        carregarPacientes();
+      }
+    }
+
+    function abrirPacientesSetor(sectorCode) {
+      document.getElementById('pep-setor').value = sectorCode;
+      switchTab('pep');
+    }
+
+    async function carregarPacientes() {
+      const sector = document.getElementById('pep-setor').value;
+      const grav = document.getElementById('pep-gravidade').value;
+      const busca = document.getElementById('pep-busca').value;
+
+      const params = new URLSearchParams({ sector_code: sector, gravidade: grav, busca });
+      const res = await fetch(`/api/patients?${params.toString()}`);
+      const data = await res.json();
+
+      document.getElementById('pep-count').textContent = `${data.patients.length} pacientes listados`;
+      const list = document.getElementById('pep-patient-list');
+
+      list.innerHTML = data.patients.map(p => {
+        const gravBadge = p.gravidade === 'Critico'
+          ? 'bg-rose-950 text-rose-300 border-rose-800'
+          : (p.gravidade === 'Grave'
+            ? 'bg-amber-950 text-amber-300 border-amber-800'
+            : (p.gravidade === 'Pre-Alta' ? 'bg-emerald-950 text-emerald-300 border-emerald-800' : 'bg-slate-800 text-slate-300 border-slate-700'));
+
+        const activeClass = selectedPatientId === p.id ? 'border-teal-500 bg-slate-800/90' : 'border-slate-800 bg-slate-950 hover:bg-slate-900';
+
+        return `
+          <div onclick="selecionarPaciente(${p.id})" class="cursor-pointer border ${activeClass} rounded-lg p-3 transition">
+            <div class="flex items-center justify-between">
+              <span class="font-mono text-xs font-bold text-teal-400">${p.leito}</span>
+              <span class="text-[10px] px-2 py-0.5 rounded border font-semibold ${gravBadge}">${p.gravidade} • NEWS2: ${p.escore_news2}</span>
+            </div>
+            <div class="flex items-center justify-between mt-1">
+              <span class="text-xs font-bold text-white">${p.codigo_anonimo} <span class="text-slate-400 font-normal">(${p.iniciais_hash})</span></span>
+              <span class="text-[11px] text-slate-400">${p.idade}a • ${p.sexo}</span>
+            </div>
+            <p class="text-xs text-slate-300 mt-1 truncate">${p.cid10} — ${p.diagnostico}</p>
+            <div class="flex items-center justify-between mt-1.5 text-[10px] text-slate-400">
+              <span>🫁 ${p.suporte_ventilatorio}</span>
+              ${p.elegivel_alta_segura ? '<span class="text-emerald-400 font-semibold">✓ Elegível Alta</span>' : ''}
+            </div>
+          </div>
+        `;
+      }).join('');
+
+      if (data.patients.length > 0 && !selectedPatientId) {
+        selecionarPaciente(data.patients[0].id);
+      }
+    }
+
+    async function selecionarPaciente(patientId) {
+      selectedPatientId = patientId;
+      const res = await fetch(`/api/patients/${patientId}`);
+      const data = await res.json();
+      renderPatientPEP(data);
+    }
+
+    function renderPatientPEP(data) {
+      const p = data.patient;
+      const pr = data.prescription;
+      const items = data.prescription_items || [];
+      const evols = data.evolutions || [];
+      const power = data.power || {};
+      const it_sys = data.it_system || {};
+
+      const alertaAlergia = p.alergias.includes('ALERGIA')
+        ? `<div class="bg-rose-950/90 border border-rose-700 text-rose-200 px-3 py-2 rounded-lg text-xs font-bold flex items-center gap-2">⚠️ ${p.alergias}</div>`
+        : `<div class="bg-slate-950 border border-slate-800 text-slate-400 px-3 py-2 rounded-lg text-xs">${p.alergias}</div>`;
+
+      const alertaEnergiaPac = (power.rede_externa === 'QUEDA_INDETERMINADA' && (p.suporte_ventilatorio.includes('VM') || p.drogas_vasoativas))
+        ? `<div class="bg-red-950 border-2 border-red-600 text-red-100 px-3 py-2.5 rounded-lg text-xs font-bold">
+             ⚡ ALERTA CRÍTICO DE ENERGIA / GERADOR: Paciente dependente de suporte elétrico (${p.suporte_ventilatorio} ${p.drogas_vasoativas ? '+ Droga Vasoativa em BIC' : ''}). Manter Ambu acoplado a cilindro torpedo de O2 e monitorar bateria interna!
+           </div>`
+        : '';
+
+      const alertaTIPapel = (it_sys.status_sistema === 'QUEDA_INDETERMINADA')
+        ? `<div class="bg-purple-950/90 border-2 border-purple-500 text-purple-100 p-3.5 rounded-xl text-xs space-y-2">
+             <div class="flex flex-wrap items-center justify-between gap-2">
+               <span class="font-extrabold text-purple-300 uppercase tracking-wide">🖥️ MODO DE CONTINGÊNCIA EM PAPEL ATIVO • SISTEMA CENTRAL FORA DO AR SEM PREVISÃO</span>
+               <span class="px-2 py-0.5 rounded bg-purple-800 text-white font-mono text-[11px]">Cópia de Segurança Local (Snapshot)</span>
+             </div>
+             <p class="text-purple-200">O sistema informatizado (${it_sys.modulos_afetados}) está indisponível (${it_sys.causa_queda}). Utilize o botão <strong>Imprimir Formulário de Contingência</strong> ao lado para gerar a folha física de aprazamento à beira-leito. <strong>Obrigatória dupla checagem manual assinada (Médico + Enfermeiro)</strong> para medicamentos de alta vigilância e drogas vasoativas.</p>
+             <div class="grid grid-cols-1 md:grid-cols-3 gap-2 pt-1 text-[11px] text-purple-200 font-mono">
+               <div class="border border-purple-700/80 rounded p-2 bg-slate-950/60">Assinatura/Carimbo Médico Prescritor:<br><br>_______________________________</div>
+               <div class="border border-purple-700/80 rounded p-2 bg-slate-950/60">Dupla Checagem Enfermagem (Aprazamento):<br><br>_______________________________</div>
+               <div class="border border-purple-700/80 rounded p-2 bg-slate-950/60">Dispensação Manual Farmácia Satélite:<br><br>_______________________________</div>
+             </div>
+           </div>`
+        : '';
+
+      const container = document.getElementById('pep-detail-content');
+      container.innerHTML = `
+        <div class="space-y-5">
+          <div class="flex flex-wrap items-start justify-between gap-4 border-b border-slate-800 pb-4">
+            <div>
+              <div class="flex items-center gap-2">
+                <span class="px-2.5 py-0.5 rounded bg-teal-950 text-teal-300 border border-teal-800 font-mono text-xs font-bold">${p.leito}</span>
+                <h2 class="text-lg font-bold text-white">${p.codigo_anonimo} <span class="text-sm font-normal text-slate-400">(Hash: ${p.iniciais_hash})</span></h2>
+                <span class="text-xs text-slate-400">• ${p.idade} anos • Sexo: ${p.sexo} • Internação: ${p.dias_internacao}d</span>
+              </div>
+              <p class="text-sm font-semibold text-slate-200 mt-1">CID-10 ${p.cid10}: ${p.diagnostico}</p>
+              <p class="text-xs text-slate-400 mt-0.5">Setor: ${p.sector_nome} • Suporte: <strong>${p.suporte_ventilatorio}</strong> • Isolamento: <strong>${p.isolamento}</strong> • Origem: ${p.origem_admissao}</p>
+            </div>
+            <div class="flex items-center gap-2 no-print">
+              <button onclick="window.print()" class="px-3 py-1.5 rounded-lg ${it_sys.status_sistema === 'QUEDA_INDETERMINADA' ? 'bg-purple-700 hover:bg-purple-600 text-white border-purple-400 font-bold' : 'bg-slate-800 hover:bg-slate-700 text-slate-200 border-slate-700 font-medium'} text-xs border">
+                🖨️ ${it_sys.status_sistema === 'QUEDA_INDETERMINADA' ? 'Imprimir Formulário de Contingência em Papel' : 'Imprimir Prescrição'}
+              </button>
+            </div>
+          </div>
+
+          ${alertaTIPapel}
+          ${alertaEnergiaPac}
+          ${alertaAlergia}
+
+          ${pr ? `
+            <div class="bg-slate-950 border border-slate-800 rounded-xl p-4 space-y-4">
+              <div class="flex flex-wrap items-center justify-between gap-2 border-b border-slate-800 pb-3">
+                <div>
+                  <span class="text-xs font-mono text-teal-400 font-bold">PRESCRIÇÃO ELETRÔNICA Nº ${pr.codigo_prescricao}</span>
+                  <p class="text-xs text-slate-400">Emissão: ${pr.data_hora} • Validade: ${pr.validade_ate} • Responsável: ${pr.medico_crm}</p>
+                </div>
+                <span class="px-2.5 py-1 rounded-full text-xs font-bold ${it_sys.status_sistema === 'QUEDA_INDETERMINADA' ? 'bg-purple-950 text-purple-300 border border-purple-700' : 'bg-emerald-950 text-emerald-300 border border-emerald-800'}">${it_sys.status_sistema === 'QUEDA_INDETERMINADA' ? 'CONTINGÊNCIA EM PAPEL (OFFLINE)' : pr.status}</span>
+              </div>
+
+              <div class="grid grid-cols-1 md:grid-cols-2 gap-3 text-xs">
+                <div class="bg-slate-900 p-3 rounded-lg border border-slate-800">
+                  <span class="text-slate-400 font-bold block mb-1">1. DIETA / NUTRIÇÃO</span>
+                  <span class="text-slate-200">${pr.dieta}</span>
+                </div>
+                <div class="bg-slate-900 p-3 rounded-lg border border-slate-800">
+                  <span class="text-slate-400 font-bold block mb-1">2. HIDRATAÇÃO / SOROTERAPIA</span>
+                  <span class="text-slate-200">${pr.hidratacao}</span>
+                </div>
+                <div class="bg-slate-900 p-3 rounded-lg border border-slate-800">
+                  <span class="text-slate-400 font-bold block mb-1">3. OXIGENOTERAPIA / VENTILAÇÃO</span>
+                  <span class="text-slate-200">${pr.oxigenoterapia}</span>
+                </div>
+                <div class="bg-slate-900 p-3 rounded-lg border border-slate-800">
+                  <span class="text-slate-400 font-bold block mb-1">4. CUIDADOS DE ENFERMAGEM & MONITORIZAÇÃO</span>
+                  <span class="text-slate-200">${pr.cuidados_enfermagem}</span>
+                </div>
+              </div>
+
+              <div>
+                <h4 class="text-xs font-bold uppercase tracking-wider text-slate-300 mb-2">5. MEDICAMENTOS & APRAZAMENTO DE ENFERMAGEM</h4>
+                <div class="overflow-x-auto">
+                  <table class="w-full text-left border-collapse text-xs">
+                    <thead>
+                      <tr class="border-b border-slate-800 text-slate-400">
+                        <th class="py-2 px-2">Categoria</th>
+                        <th class="py-2 px-2">Medicamento / Apresentação</th>
+                        <th class="py-2 px-2">Dose & Via</th>
+                        <th class="py-2 px-2">Aprazamento</th>
+                        <th class="py-2 px-2">Status / Farmácia & RH</th>
+                        <th class="py-2 px-2 text-right no-print">Ações</th>
+                      </tr>
+                    </thead>
+                    <tbody class="divide-y divide-slate-800/70">
+                      ${items.map(item => `
+                        <tr class="${item.em_falta_farmacia ? 'bg-amber-950/30' : 'hover:bg-slate-900/60'}">
+                          <td class="py-2.5 px-2 text-slate-400">${item.categoria}</td>
+                          <td class="py-2.5 px-2 font-medium text-white">
+                            ${item.medicamento}
+                            ${item.alta_vigilancia ? '<span class="ml-1 px-1.5 py-0.5 text-[10px] rounded bg-rose-950 text-rose-300 border border-rose-800 font-bold">MAV</span>' : ''}
+                            ${item.em_falta_farmacia ? `
+                              <div class="mt-1 text-[11px] text-amber-300 font-semibold">
+                                🚨 EM FALTA NA FARMÁCIA — Sugestão CFT: <span class="underline">${item.substituto_sugerido}</span>
+                              </div>
+                            ` : ''}
+                          </td>
+                          <td class="py-2.5 px-2 text-slate-200">${item.dose} • <strong>${item.via}</strong> (${item.intervalo})</td>
+                          <td class="py-2.5 px-2 font-mono text-teal-300">${item.aprazamento}</td>
+                          <td class="py-2.5 px-2">
+                            ${item.em_falta_farmacia
+                              ? '<span class="px-2 py-0.5 rounded bg-amber-950 text-amber-300 border border-amber-700 font-bold">🚨 Ruptura Estoque</span>'
+                              : (item.status_checagem === 'Checado'
+                                ? '<span class="px-2 py-0.5 rounded bg-emerald-950 text-emerald-300 border border-emerald-800 font-semibold">✓ Checado</span>'
+                                : (item.atraso_minutos >= 20
+                                  ? `<span class="px-2 py-0.5 rounded bg-rose-950 text-rose-300 border border-rose-800 font-semibold">⚠️ Atraso +${item.atraso_minutos}m</span>`
+                                  : '<span class="px-2 py-0.5 rounded bg-slate-800 text-slate-300">Aprazado</span>'))}
+                          </td>
+                          <td class="py-2.5 px-2 text-right no-print space-x-1">
+                            ${item.em_falta_farmacia ? `
+                              <button onclick="substituirMedItem(${item.id})" class="px-2 py-1 rounded bg-amber-600 hover:bg-amber-500 text-white font-semibold text-[11px]">
+                                🔄 Substituir
+                              </button>
+                            ` : ''}
+                            <button onclick="checarItemPrescricao(${item.id})" class="px-2.5 py-1 rounded bg-teal-700 hover:bg-teal-600 text-white font-medium text-[11px]">
+                              ${item.status_checagem === 'Checado' ? 'Desfazer' : 'Checar'}
+                            </button>
+                          </td>
+                        </tr>
+                      `).join('')}
+                    </tbody>
+                  </table>
+                </div>
+              </div>
+
+              <div class="pt-3 border-t border-slate-800 no-print">
+                <span class="text-xs font-bold text-teal-400 block mb-2">+ Prescrever Novo Item Medicamentoso</span>
+                <div class="grid grid-cols-1 md:grid-cols-6 gap-2 text-xs">
+                  <input id="new-med-cat" type="text" placeholder="Categoria (ex: Antibiótico)" class="bg-slate-900 border border-slate-700 rounded px-2.5 py-1.5 text-white" />
+                  <input id="new-med-nome" type="text" placeholder="Medicamento (ex: Meropenem 1g)" class="md:col-span-2 bg-slate-900 border border-slate-700 rounded px-2.5 py-1.5 text-white" />
+                  <input id="new-med-dose" type="text" placeholder="Dose (ex: 1g em 100mL SF)" class="bg-slate-900 border border-slate-700 rounded px-2.5 py-1.5 text-white" />
+                  <input id="new-med-via" type="text" placeholder="Via/Interv (EV 8/8h)" class="bg-slate-900 border border-slate-700 rounded px-2.5 py-1.5 text-white" />
+                  <button onclick="adicionarMedicamento(${p.id})" class="bg-teal-600 hover:bg-teal-500 text-white font-semibold rounded px-3 py-1.5">
+                    Incluir na Prescrição
+                  </button>
+                </div>
+              </div>
+            </div>
+          ` : ''}
+
+          <div class="bg-slate-950 border border-slate-800 rounded-xl p-4 space-y-4">
+            <h4 class="text-xs font-bold uppercase tracking-wider text-slate-300">📋 Evolução Clínica Multiprofissional (SOAP) & Sinais Vitais</h4>
+            <div class="space-y-3">
+              ${evols.map(e => `
+                <div class="bg-slate-900 border border-slate-800 rounded-lg p-3 text-xs space-y-1.5">
+                  <div class="flex items-center justify-between border-b border-slate-800 pb-1.5">
+                    <span class="font-bold text-teal-300">${e.profissional}</span>
+                    <span class="font-mono text-slate-400">${e.data_hora}</span>
+                  </div>
+                  <div class="flex flex-wrap gap-3 py-1 text-[11px] bg-slate-950 px-2.5 rounded border border-slate-800/80">
+                    <span><strong>PA:</strong> ${e.pa} mmHg</span>
+                    <span><strong>FC:</strong> ${e.fc} bpm</span>
+                    <span><strong>FR:</strong> ${e.fr} irpm</span>
+                    <span><strong>SpO2:</strong> ${e.spo2}%</span>
+                    <span><strong>Tax:</strong> ${e.tax} °C</span>
+                  </div>
+                  <p><strong class="text-slate-400">S (Subjetivo):</strong> ${e.subjetivo}</p>
+                  <p><strong class="text-slate-400">O (Objetivo):</strong> ${e.objetivo}</p>
+                  <p><strong class="text-slate-400">A (Avaliação):</strong> ${e.avaliacao}</p>
+                  <p><strong class="text-slate-400">P (Plano):</strong> ${e.plano}</p>
+                </div>
+              `).join('')}
+            </div>
+
+            <div class="pt-3 border-t border-slate-800 space-y-2 no-print">
+              <span class="text-xs font-bold text-teal-400 block">+ Registrar Nova Evolução Clínica (SOAP)</span>
+              <div class="grid grid-cols-2 md:grid-cols-5 gap-2 text-xs">
+                <input id="ev-pa" type="text" value="120/80" placeholder="PA (mmHg)" class="bg-slate-900 border border-slate-700 rounded px-2.5 py-1.5 text-white" />
+                <input id="ev-fc" type="number" value="82" placeholder="FC (bpm)" class="bg-slate-900 border border-slate-700 rounded px-2.5 py-1.5 text-white" />
+                <input id="ev-fr" type="number" value="18" placeholder="FR (irpm)" class="bg-slate-900 border border-slate-700 rounded px-2.5 py-1.5 text-white" />
+                <input id="ev-spo2" type="number" value="97" placeholder="SpO2 (%)" class="bg-slate-900 border border-slate-700 rounded px-2.5 py-1.5 text-white" />
+                <input id="ev-tax" type="number" step="0.1" value="36.6" placeholder="Tax (°C)" class="bg-slate-900 border border-slate-700 rounded px-2.5 py-1.5 text-white" />
+              </div>
+              <div class="grid grid-cols-1 md:grid-cols-2 gap-2 text-xs">
+                <input id="ev-subj" type="text" placeholder="Subjetivo (Queixas / Estado geral)" class="bg-slate-900 border border-slate-700 rounded px-2.5 py-1.5 text-white" />
+                <input id="ev-obj" type="text" placeholder="Objetivo (Exame físico / Exames)" class="bg-slate-900 border border-slate-700 rounded px-2.5 py-1.5 text-white" />
+                <input id="ev-aval" type="text" placeholder="Avaliação diagnóstica" class="bg-slate-900 border border-slate-700 rounded px-2.5 py-1.5 text-white" />
+                <input id="ev-plano" type="text" placeholder="Plano terapêutico / Conduta" class="bg-slate-900 border border-slate-700 rounded px-2.5 py-1.5 text-white" />
+              </div>
+              <button onclick="adicionarEvolucao(${p.id})" class="px-4 py-1.5 rounded bg-teal-600 hover:bg-teal-500 text-white text-xs font-semibold">
+                Salvar Evolução no Prontuário
+              </button>
+            </div>
+          </div>
+        </div>
+      `;
+    }
+
+    async function checarItemPrescricao(itemId) {
+      await fetch(`/api/prescription-items/${itemId}/check`, { method: 'POST' });
+      if (selectedPatientId) {
+        await selecionarPaciente(selectedPatientId);
+      }
+    }
+
+    async function adicionarMedicamento(patientId) {
+      const categoria = document.getElementById('new-med-cat').value || 'Medicação';
+      const medicamento = document.getElementById('new-med-nome').value;
+      const dose = document.getElementById('new-med-dose').value || '1 dose';
+      const via = document.getElementById('new-med-via').value || 'EV';
+      if (!medicamento) return;
+
+      await fetch(`/api/patients/${patientId}/medications`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          categoria,
+          medicamento,
+          dose,
+          via,
+          intervalo: '8/8h',
+          aprazamento: '06:00 - 14:00 - 22:00',
+          alta_vigilancia: 0
+        })
+      });
+      await carregarDashboard();
+      await selecionarPaciente(patientId);
+    }
+
+    async function adicionarEvolucao(patientId) {
+      const subjetivo = document.getElementById('ev-subj').value;
+      const objetivo = document.getElementById('ev-obj').value;
+      const avaliacao = document.getElementById('ev-aval').value;
+      const plano = document.getElementById('ev-plano').value;
+      if (!subjetivo && !objetivo) return;
+
+      await fetch(`/api/patients/${patientId}/evolutions`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          profissional: 'Plantonista HRO (Registro Simulado)',
+          subjetivo: subjetivo || 'Sem queixas novas.',
+          objetivo: objetivo || 'Estável ao exame.',
+          avaliacao: avaliacao || 'Mantém quadro clínico.',
+          plano: plano || 'Manter conduta e prescrição vigente.',
+          pa: document.getElementById('ev-pa').value,
+          fc: parseInt(document.getElementById('ev-fc').value, 10),
+          fr: parseInt(document.getElementById('ev-fr').value, 10),
+          spo2: parseInt(document.getElementById('ev-spo2').value, 10),
+          tax: parseFloat(document.getElementById('ev-tax').value)
+        })
+      });
+      await selecionarPaciente(patientId);
+    }
+
+    window.addEventListener('DOMContentLoaded', () => {
+      carregarDashboard();
+    });
+  </script>
+</body>
+</html>
