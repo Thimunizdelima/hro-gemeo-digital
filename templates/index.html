@@ -3,67 +3,341 @@
 <head>
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-  <title>HRO Gêmeo Digital — Contingência Hospitalar & Prescrição Eletrônica</title>
+  <title>G-HOSP • HRO Gêmeo Digital — Gestão Hospitalar, Mapa de Leitos & PEP</title>
   <script src="https://cdn.tailwindcss.com"></script>
   <style>
-    body { font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica, Arial, sans-serif; }
+    body { font-family: Tahoma, "Segoe UI", -apple-system, BlinkMacSystemFont, Roboto, Helvetica, Arial, sans-serif; }
     @media print {
       .no-print { display: none !important; }
       .print-only { display: block !important; }
     }
+
+    /* ==========================================================================
+       TEMA PADRÃO G-HOSP (INOVADORA SISTEMAS - ERP CLÍNICO HOSPITALAR CLARO)
+       ========================================================================== */
+    body.theme-ghosp {
+      background-color: #e8eef5 !important;
+      color: #0f172a !important;
+    }
+
+    /* Barra Institucional Superior G-HOSP */
+    body.theme-ghosp .ghosp-top-bar {
+      background: linear-gradient(90deg, #003b66 0%, #005596 65%, #00695c 100%) !important;
+      border-bottom: 2px solid #002b4d !important;
+      color: #ffffff !important;
+    }
+    body.theme-ghosp .ghosp-sub-bar {
+      background-color: #dce6f2 !important;
+      border-bottom: 1px solid #b8c9de !important;
+      color: #1e3a5f !important;
+    }
+    body.theme-ghosp .ghosp-nav-bar {
+      background-color: #f1f5f9 !important;
+      border-bottom: 2px solid #cbd5e1 !important;
+    }
+
+    /* Adaptação de painéis, cartões e tabelas para o visual claro clínico G-HOSP */
+    body.theme-ghosp .bg-slate-950,
+    body.theme-ghosp .bg-slate-950\/90,
+    body.theme-ghosp .bg-slate-950\/60 {
+      background-color: #f8fafc !important;
+      color: #0f172a !important;
+    }
+    body.theme-ghosp .bg-slate-900,
+    body.theme-ghosp .bg-slate-900\/90,
+    body.theme-ghosp .bg-slate-900\/60 {
+      background-color: #ffffff !important;
+      color: #0f172a !important;
+      box-shadow: 0 1px 3px rgba(15, 23, 42, 0.07) !important;
+    }
+    body.theme-ghosp .bg-slate-800,
+    body.theme-ghosp .bg-slate-800\/90 {
+      background-color: #e2e8f0 !important;
+      color: #0f172a !important;
+    }
+    body.theme-ghosp .hover\:bg-slate-900:hover,
+    body.theme-ghosp .hover\:bg-slate-900\/60:hover,
+    body.theme-ghosp .hover\:bg-slate-950\/60:hover,
+    body.theme-ghosp .hover\:bg-slate-800:hover,
+    body.theme-ghosp .hover\:bg-slate-700:hover {
+      background-color: #e0f2fe !important;
+    }
+
+    /* Bordas estruturadas estilo ERP G-HOSP */
+    body.theme-ghosp .border-slate-800,
+    body.theme-ghosp .border-slate-800\/90,
+    body.theme-ghosp .border-slate-800\/80,
+    body.theme-ghosp .border-slate-800\/70,
+    body.theme-ghosp .border-slate-700 {
+      border-color: #cbd5e1 !important;
+    }
+    body.theme-ghosp .divide-slate-800\/70 > :not([hidden]) ~ :not([hidden]) {
+      border-color: #e2e8f0 !important;
+    }
+
+    /* Tipografia de alto contraste clínico */
+    body.theme-ghosp .text-white {
+      color: #0f172a !important;
+    }
+    body.theme-ghosp .ghosp-top-bar .text-white,
+    body.theme-ghosp button.text-white,
+    body.theme-ghosp .ghosp-keep-white {
+      color: #ffffff !important;
+    }
+    body.theme-ghosp .text-slate-200,
+    body.theme-ghosp .text-slate-300 {
+      color: #1e293b !important;
+    }
+    body.theme-ghosp .text-slate-400,
+    body.theme-ghosp .text-slate-500 {
+      color: #475569 !important;
+    }
+    body.theme-ghosp .text-teal-300,
+    body.theme-ghosp .text-teal-400 {
+      color: #005596 !important;
+    }
+    body.theme-ghosp .text-sky-300,
+    body.theme-ghosp .text-sky-400 {
+      color: #0369a1 !important;
+    }
+    body.theme-ghosp .text-indigo-300 {
+      color: #3730a3 !important;
+    }
+    body.theme-ghosp .text-emerald-300,
+    body.theme-ghosp .text-emerald-400 {
+      color: #15803d !important;
+    }
+    body.theme-ghosp .text-amber-300,
+    body.theme-ghosp .text-amber-400 {
+      color: #b45309 !important;
+    }
+    body.theme-ghosp .text-rose-300,
+    body.theme-ghosp .text-rose-400 {
+      color: #be123c !important;
+    }
+    body.theme-ghosp .text-cyan-300,
+    body.theme-ghosp .text-cyan-400 {
+      color: #0e7490 !important;
+    }
+
+    /* Badges clínicos claros no modo G-HOSP */
+    body.theme-ghosp .bg-teal-950 {
+      background-color: #e0f2fe !important;
+      border-color: #7dd3fc !important;
+      color: #0c4a6e !important;
+    }
+    body.theme-ghosp .bg-emerald-950,
+    body.theme-ghosp .bg-emerald-950\/30 {
+      background-color: #dcfce7 !important;
+      border-color: #86efac !important;
+      color: #14532d !important;
+    }
+    body.theme-ghosp .bg-amber-950,
+    body.theme-ghosp .bg-amber-950\/80,
+    body.theme-ghosp .bg-amber-950\/30 {
+      background-color: #fef3c7 !important;
+      border-color: #fcd34d !important;
+      color: #78350f !important;
+    }
+    body.theme-ghosp .bg-rose-950,
+    body.theme-ghosp .bg-rose-950\/30 {
+      background-color: #ffe4e6 !important;
+      border-color: #fda4af !important;
+      color: #881337 !important;
+    }
+    body.theme-ghosp .bg-sky-950 {
+      background-color: #e0f2fe !important;
+      border-color: #7dd3fc !important;
+      color: #075985 !important;
+    }
+    body.theme-ghosp .bg-fuchsia-950 {
+      background-color: #fae8ff !important;
+      border-color: #f0abfc !important;
+      color: #701a75 !important;
+    }
+    body.theme-ghosp .bg-purple-950 {
+      background-color: #f3e8ff !important;
+      border-color: #d8b4fe !important;
+      color: #581c87 !important;
+    }
+    body.theme-ghosp .bg-cyan-950 {
+      background-color: #cffafe !important;
+      border-color: #67e8f9 !important;
+      color: #164e63 !important;
+    }
+
+    /* Preservar destaque intenso nos Banners de Emergência Superior */
+    body.theme-ghosp #banner-utilidades,
+    body.theme-ghosp #banner-centro-cirurgico,
+    body.theme-ghosp #banner-equipamentos,
+    body.theme-ghosp #banner-sistema-ti,
+    body.theme-ghosp #banner-energia,
+    body.theme-ghosp #banner-farmacia {
+      color: #ffffff !important;
+    }
+    body.theme-ghosp #banner-utilidades *,
+    body.theme-ghosp #banner-centro-cirurgico *,
+    body.theme-ghosp #banner-equipamentos *,
+    body.theme-ghosp #banner-sistema-ti *,
+    body.theme-ghosp #banner-energia *,
+    body.theme-ghosp #banner-farmacia * {
+      color: inherit;
+    }
+
+    /* Inputs e Selects estilo formulário G-HOSP */
+    body.theme-ghosp input[type="text"],
+    body.theme-ghosp input[type="number"],
+    body.theme-ghosp select {
+      background-color: #ffffff !important;
+      border: 1px solid #94a3b8 !important;
+      color: #0f172a !important;
+    }
+    body.theme-ghosp input[type="text"]:focus,
+    body.theme-ghosp input[type="number"]:focus,
+    body.theme-ghosp select:focus {
+      border-color: #005596 !important;
+      outline: 2px solid rgba(0, 85, 150, 0.2) !important;
+    }
+
+    /* Quadrícula de Leitos estilo Mapa de Leitos G-HOSP */
+    .ghosp-bed-box {
+      display: inline-flex;
+      flex-direction: column;
+      align-items: center;
+      justify-content: center;
+      width: 28px;
+      height: 24px;
+      border-radius: 4px;
+      font-size: 9px;
+      font-weight: 700;
+      line-height: 1;
+      cursor: pointer;
+      transition: transform 0.1s ease, box-shadow 0.1s ease;
+      user-select: none;
+    }
+    .ghosp-bed-box:hover {
+      transform: scale(1.14);
+      z-index: 10;
+      box-shadow: 0 2px 6px rgba(0,0,0,0.28);
+    }
+    .ghosp-bed-livre { background-color: #16a34a; color: #ffffff !important; border: 1px solid #15803d; }
+    .ghosp-bed-regular { background-color: #0284c7; color: #ffffff !important; border: 1px solid #0369a1; }
+    .ghosp-bed-critico { background-color: #dc2626; color: #ffffff !important; border: 1px solid #b91c1c; }
+    .ghosp-bed-prealta { background-color: #eab308; color: #0f172a !important; border: 1px solid #ca8a04; }
+    .ghosp-bed-bloqueado { background-color: #64748b; color: #ffffff !important; border: 1px solid #475569; }
+    .ghosp-bed-extra { background-color: #9333ea; color: #ffffff !important; border: 1px solid #7e22ce; }
+
+    /* Cabeçalho da Card de Setor estilo Janela G-HOSP */
+    body.theme-ghosp .ghosp-sector-card {
+      border-top: 4px solid #005596 !important;
+    }
+    body.theme-ghosp .ghosp-sector-card.sector-critico {
+      border-top: 4px solid #dc2626 !important;
+    }
+    body.theme-ghosp .ghosp-sector-card.sector-alerta {
+      border-top: 4px solid #d97706 !important;
+    }
   </style>
 </head>
-<body class="bg-slate-950 text-slate-100 min-h-screen">
+<body class="theme-ghosp bg-slate-950 text-slate-100 min-h-screen">
 
-  <!-- Top Header -->
-  <header class="bg-slate-900 border-b border-slate-800 sticky top-0 z-30 no-print">
-    <div class="max-w-7xl mx-auto px-4 py-3 flex flex-wrap items-center justify-between gap-4">
-      <div class="flex items-center gap-3">
-        <div class="w-10 h-10 rounded-xl bg-teal-600 flex items-center justify-center font-bold text-lg shadow-lg shadow-teal-900/50">
-          HRO
-        </div>
-        <div>
-          <div class="flex items-center gap-2">
-            <h1 class="font-bold text-lg tracking-tight text-white">Gêmeo Digital Hospitalar & Prescrição Eletrônica</h1>
-            <span class="text-xs px-2 py-0.5 rounded-full bg-teal-950 text-teal-300 border border-teal-800 font-medium">LGPD • 100% Anonimizado</span>
+  <!-- Top Header G-HOSP ERP Institucional -->
+  <header class="sticky top-0 z-30 no-print shadow-md">
+    <!-- Barra Principal Azul Marinho / Verde Hospitalar G-HOSP -->
+    <div class="ghosp-top-bar bg-slate-900 border-b border-slate-800">
+      <div class="max-w-7xl mx-auto px-4 py-2.5 flex flex-wrap items-center justify-between gap-3">
+        <div class="flex items-center gap-3">
+          <div class="flex items-center bg-white/10 border border-white/25 rounded-lg px-2.5 py-1.5 shadow-inner">
+            <div class="w-7 h-7 rounded bg-emerald-500 flex items-center justify-center font-black text-white text-base mr-2 shadow">
+              ✚
+            </div>
+            <div>
+              <div class="flex items-center gap-1.5">
+                <span class="font-black text-base tracking-wider text-white ghosp-keep-white">G-HOSP</span>
+                <span class="text-[10px] px-1.5 py-0.2 rounded bg-sky-500/30 border border-sky-300/40 text-sky-100 font-mono ghosp-keep-white">v24.4 WEB</span>
+              </div>
+              <span class="block text-[9px] uppercase tracking-widest text-emerald-200 font-semibold ghosp-keep-white">Gestão Hospitalar • Gêmeo Digital</span>
+            </div>
           </div>
-          <p class="text-xs text-slate-400">Hospital Regional do Oeste (Chapecó/SC) — Efetivo de Ocupação, Farmácia, Energia/Geradores, RH e PEP</p>
-        </div>
-      </div>
 
-      <div class="flex items-center gap-2.5">
-        <div id="badge-contingencia" class="px-3 py-1.5 rounded-lg text-xs font-bold border bg-amber-950/80 text-amber-300 border-amber-700">
-          Carregando status...
+          <div class="border-l border-white/20 pl-3">
+            <div class="flex flex-wrap items-center gap-2">
+              <h1 class="font-bold text-sm md:text-base tracking-tight text-white ghosp-keep-white">
+                UNIDADE 001 — HOSPITAL REGIONAL DO OESTE (HRO / ALVF - CHAPECÓ/SC)
+              </h1>
+              <span class="text-[10px] px-2 py-0.5 rounded bg-white/15 text-white border border-white/25 font-mono ghosp-keep-white">
+                CNES: 2537788 • SUS / AIH
+              </span>
+              <span class="text-[10px] px-2 py-0.5 rounded bg-emerald-500/25 text-emerald-100 border border-emerald-300/40 font-semibold ghosp-keep-white">
+                LGPD Anonimizado
+              </span>
+            </div>
+            <p class="text-[11px] text-sky-100/90 ghosp-keep-white">
+              Módulo Integrado NIR (340 Leitos Fixos + PS Apoio + 18 SRPA) • Farmácia Hospitalar • Engenharia Clínica • Prontuário Eletrônico (PEP)
+            </p>
+          </div>
         </div>
-        <button onclick="executarMitigacao()" class="px-3 py-1.5 rounded-lg bg-emerald-600 hover:bg-emerald-500 text-white text-xs font-semibold transition shadow">
-          ⚡ Acionar Resposta de Contingência
-        </button>
-        <button onclick="resetarSimulacao()" class="px-3 py-1.5 rounded-lg bg-slate-800 hover:bg-slate-700 text-slate-300 text-xs font-medium border border-slate-700 transition">
-          ↺ Restaurar Base HRO
-        </button>
+
+        <div class="flex flex-wrap items-center gap-2">
+          <div id="badge-contingencia" class="px-2.5 py-1 rounded text-xs font-bold border bg-amber-950/80 text-amber-300 border-amber-700">
+            Carregando status...
+          </div>
+          <button onclick="executarMitigacao()" title="Atalho G-HOSP: F8" class="px-2.5 py-1.5 rounded bg-emerald-600 hover:bg-emerald-500 text-white text-xs font-bold transition shadow flex items-center gap-1 ghosp-keep-white">
+            <span class="px-1 py-0.2 rounded bg-black/25 font-mono text-[10px] ghosp-keep-white">F8</span>
+            <span>⚡ Acionar Contingência</span>
+          </button>
+          <button onclick="resetarSimulacao()" title="Atalho G-HOSP: F10" class="px-2.5 py-1.5 rounded bg-sky-800 hover:bg-sky-700 text-white text-xs font-semibold border border-white/25 transition flex items-center gap-1 ghosp-keep-white">
+            <span class="px-1 py-0.2 rounded bg-black/25 font-mono text-[10px] ghosp-keep-white">F10</span>
+            <span>↺ Restaurar Base HRO</span>
+          </button>
+          <button id="btn-toggle-theme" onclick="toggleGhospTheme()" class="px-2.5 py-1.5 rounded bg-white/15 hover:bg-white/25 text-white text-xs font-semibold border border-white/30 transition ghosp-keep-white">
+            🌗 Tema: G-HOSP Claro
+          </button>
+        </div>
       </div>
     </div>
 
-    <!-- Navigation Tabs -->
-    <div class="max-w-7xl mx-auto px-4 flex flex-wrap gap-1 border-t border-slate-800/80 pt-1">
-      <button id="tab-btn-twin" onclick="switchTab('twin')" class="px-4 py-2.5 text-sm font-semibold border-b-2 border-teal-400 text-teal-300 transition">
-        🏥 1. Efetivo de Ocupação, Áreas Críticas & RH
-      </button>
-      <button id="tab-btn-sim" onclick="switchTab('sim')" class="px-4 py-2.5 text-sm font-semibold border-b-2 border-transparent text-slate-400 hover:text-slate-200 transition">
-        🚨 2. Sala de Crise (Energia, Farmácia, TI, CC/SRPA, Equipamentos & Pontos Cegos)
-      </button>
-      <button id="tab-btn-evidencias" onclick="switchTab('evidencias')" class="px-4 py-2.5 text-sm font-semibold border-b-2 border-transparent text-slate-400 hover:text-slate-200 transition flex items-center gap-1.5">
-        <span>📚 3. Brainstorm & Decisões Baseadas em Evidências</span>
-        <span id="badge-evidencias-count" class="px-1.5 py-0.5 text-[10px] rounded-full bg-teal-950 text-teal-300 border border-teal-700 font-bold">16 Protocolos</span>
-      </button>
-      <button id="tab-btn-pep" onclick="switchTab('pep')" class="px-4 py-2.5 text-sm font-semibold border-b-2 border-transparent text-slate-400 hover:text-slate-200 transition">
-        💊 4. Prescrição Eletrônica & Prontuário (Anonimizado)
-      </button>
+    <!-- Sub-barra Institucional G-HOSP (Operador, Turno, Competência e Atalhos Rápidos) -->
+    <div class="ghosp-sub-bar bg-slate-950 border-b border-slate-800 text-[11px]">
+      <div class="max-w-7xl mx-auto px-4 py-1 flex flex-wrap items-center justify-between gap-2">
+        <div class="flex flex-wrap items-center gap-3">
+          <span>📍 <strong>Módulo Ativo:</strong> <span id="ghosp-breadcrumb-modulo">NIR — Censo Hospitalar & Mapa Visual de Leitos</span></span>
+          <span class=" opacity-50">|</span>
+          <span>👤 <strong>Operador:</strong> <code class="font-mono font-bold">NIR.REGULACAO</code> (Plantão Regulação Médica / Enfermagem)</span>
+          <span class="opacity-50 hidden md:inline">|</span>
+          <span class="hidden md:inline">🏥 <strong>Estrutura HRO:</strong> 340 Leitos Fixos • PS Apoio • 18 SRPA</span>
+        </div>
+        <div class="flex items-center gap-3 font-mono">
+          <span id="ghosp-live-clock" class="font-bold">--/--/---- --:--:--</span>
+          <button onclick="carregarDashboard()" class="px-2 py-0.5 rounded bg-sky-700 hover:bg-sky-600 text-white text-[10px] font-sans font-bold ghosp-keep-white">
+            [F5] Sincronizar Censo
+          </button>
+        </div>
+      </div>
+    </div>
+
+    <!-- Navigation Tabs (Módulos do Sistema G-HOSP) -->
+    <div class="ghosp-nav-bar bg-slate-900 border-b border-slate-800">
+      <div class="max-w-7xl mx-auto px-4 flex flex-wrap gap-1 pt-1">
+        <button id="tab-btn-twin" onclick="switchTab('twin')" class="px-4 py-2 text-xs md:text-sm font-bold border-b-2 border-teal-400 text-teal-300 transition flex items-center gap-1.5">
+          <span>🛏️ MÓDULO 01: Mapa de Leitos, Censo & RH (NIR)</span>
+        </button>
+        <button id="tab-btn-sim" onclick="switchTab('sim')" class="px-4 py-2 text-xs md:text-sm font-semibold border-b-2 border-transparent text-slate-400 hover:text-slate-200 transition flex items-center gap-1.5">
+          <span>🚨 MÓDULO 02: Sala de Crise (Energia, Farmácia, TI, CC/SRPA & Utilidades)</span>
+        </button>
+        <button id="tab-btn-evidencias" onclick="switchTab('evidencias')" class="px-4 py-2 text-xs md:text-sm font-semibold border-b-2 border-transparent text-slate-400 hover:text-slate-200 transition flex items-center gap-1.5">
+          <span>📚 MÓDULO 03: Protocolos & Evidências (NAM / Joint Commission)</span>
+          <span id="badge-evidencias-count" class="px-1.5 py-0.5 text-[10px] rounded-full bg-teal-950 text-teal-300 border border-teal-700 font-bold">16 Protocolos</span>
+        </button>
+        <button id="tab-btn-pep" onclick="switchTab('pep')" class="px-4 py-2 text-xs md:text-sm font-semibold border-b-2 border-transparent text-slate-400 hover:text-slate-200 transition flex items-center gap-1.5">
+          <span>📋 MÓDULO 04: Prontuário Eletrônico & Prescrição — PEP (G-HOSP)</span>
+        </button>
+      </div>
     </div>
   </header>
 
   <!-- Main Container -->
-  <main class="max-w-7xl mx-auto px-4 py-5 space-y-5">
+  <main class="max-w-7xl mx-auto px-4 py-4 space-y-4">
 
     <!-- Emergency Banner: Blind-Spot Critical Utilities & Special Disasters (O2 VIE, Hemodialysis, Blood, CME, HazMat, Evacuation, NICU) -->
     <div id="banner-utilidades" class="hidden rounded-xl border-2 border-cyan-400 bg-cyan-950/90 p-4 no-print shadow-lg shadow-cyan-950/50"></div>
@@ -236,13 +510,76 @@
         <div id="recommendations-list" class="grid grid-cols-1 md:grid-cols-2 gap-3"></div>
       </div>
 
-      <!-- Sectors Grid -->
-      <div>
-        <div class="flex items-center justify-between mb-3">
-          <h2 class="text-base font-bold text-white">Mapa Detalhado de Alas / Setores do HRO</h2>
-          <span class="text-xs text-slate-400">Clique em "Calibrar" para alterar o efetivo individual do setor ou "Ver Pacientes" para acessar as prescrições</span>
+      <!-- Sectors Grid & G-HOSP Visual Bed Map -->
+      <div class="space-y-3">
+        <div class="bg-slate-900 border border-slate-800 rounded-xl p-3.5 flex flex-col gap-3">
+          <div class="flex flex-wrap items-center justify-between gap-3">
+            <div>
+              <div class="flex items-center gap-2">
+                <span class="px-2 py-0.5 rounded bg-teal-950 text-teal-300 border border-teal-700 text-[10px] font-bold uppercase font-mono">
+                  G-HOSP • NIR / GESTÃO DE LEITOS
+                </span>
+                <h2 class="text-base font-bold text-white">Mapa Visual de Leitos & Censo Hospitalar por Unidade (HRO)</h2>
+              </div>
+              <p class="text-xs text-slate-400 mt-0.5">
+                Clique diretamente sobre qualquer leito ocupado na quadrícula para abrir o Prontuário Eletrônico (PEP) ou clique em "Calibrar" para ajustar o censo da ala.
+              </p>
+            </div>
+            <div class="flex items-center gap-1.5">
+              <button id="btn-view-cards" onclick="setGhospSectorView('CARDS')" class="px-3 py-1.5 rounded-lg bg-teal-600 text-white text-xs font-bold shadow transition ghosp-keep-white">
+                🛏️ Mapa Visual de Leitos (Cards)
+              </button>
+              <button id="btn-view-table" onclick="setGhospSectorView('TABLE')" class="px-3 py-1.5 rounded-lg bg-slate-800 hover:bg-slate-700 text-slate-300 text-xs font-semibold border border-slate-700 transition">
+                📊 Grade Censo Diário (ERP G-HOSP)
+              </button>
+            </div>
+          </div>
+
+          <!-- G-HOSP Classic Bed Status Legend Bar -->
+          <div class="flex flex-wrap items-center justify-between gap-2 pt-2.5 border-t border-slate-800 text-[11px]">
+            <div class="flex flex-wrap items-center gap-3">
+              <span class="font-bold text-slate-300 uppercase text-[10px] tracking-wider">Legenda G-HOSP:</span>
+              <span class="inline-flex items-center gap-1.5"><span class="w-3.5 h-3.5 rounded-sm inline-block" style="background:#16a34a"></span> <strong>Livre / Vago</strong></span>
+              <span class="inline-flex items-center gap-1.5"><span class="w-3.5 h-3.5 rounded-sm inline-block" style="background:#0284c7"></span> <strong>Ocupado Regular</strong></span>
+              <span class="inline-flex items-center gap-1.5"><span class="w-3.5 h-3.5 rounded-sm inline-block" style="background:#dc2626"></span> <strong>Crítico / VM / DVA</strong></span>
+              <span class="inline-flex items-center gap-1.5"><span class="w-3.5 h-3.5 rounded-sm inline-block" style="background:#eab308"></span> <strong>Pré-Alta / Alta Sinalizada</strong></span>
+              <span class="inline-flex items-center gap-1.5"><span class="w-3.5 h-3.5 rounded-sm inline-block" style="background:#64748b"></span> <strong>Bloqueado / Isolamento / Manut.</strong></span>
+              <span class="inline-flex items-center gap-1.5"><span class="w-3.5 h-3.5 rounded-sm inline-block" style="background:#9333ea"></span> <strong>Extra / Maca Corredor / Retido</strong></span>
+            </div>
+            <span class="text-[11px] font-mono text-teal-400 font-semibold">
+              Regra Estrutural: 340 Leitos Fixos + PS (Apoio) + 18 SRPA
+            </span>
+          </div>
         </div>
+
+        <!-- View 1: Cards with G-HOSP Visual Bed Boxes -->
         <div id="sectors-grid" class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4"></div>
+
+        <!-- View 2: Classic G-HOSP Tabular Daily Hospital Census Grid -->
+        <div id="sectors-table-container" class="hidden bg-slate-900 border border-slate-800 rounded-xl overflow-hidden shadow">
+          <div class="overflow-x-auto">
+            <table class="w-full text-left border-collapse text-xs">
+              <thead>
+                <tr class="bg-slate-950 border-b border-slate-800 text-slate-300 uppercase text-[10px] tracking-wider">
+                  <th class="py-2.5 px-3">Cód.</th>
+                  <th class="py-2.5 px-3">Unidade Assistencial / Ala (G-HOSP)</th>
+                  <th class="py-2.5 px-3">Tipo de Leito</th>
+                  <th class="py-2.5 px-2 text-center">Instalados</th>
+                  <th class="py-2.5 px-2 text-center">Bloq.</th>
+                  <th class="py-2.5 px-2 text-center">Operac.</th>
+                  <th class="py-2.5 px-2 text-center">Ocupados</th>
+                  <th class="py-2.5 px-2 text-center">Livres</th>
+                  <th class="py-2.5 px-2 text-center">Críticos/VM</th>
+                  <th class="py-2.5 px-2 text-center">Pré-Alta</th>
+                  <th class="py-2.5 px-2 text-center">% Ocup.</th>
+                  <th class="py-2.5 px-3">Equipe Turno / Equip.</th>
+                  <th class="py-2.5 px-3 text-right">Ações NIR</th>
+                </tr>
+              </thead>
+              <tbody id="sectors-table-body" class="divide-y divide-slate-800/70"></tbody>
+            </table>
+          </div>
+        </div>
       </div>
     </div>
 
@@ -955,17 +1292,64 @@
     let currentDashboard = null;
     let selectedPatientId = null;
     let currentEvidenciaFilter = 'TODOS';
+    let currentGhospView = 'CARDS';
+
+    function updateGhospClock() {
+      const el = document.getElementById('ghosp-live-clock');
+      if (!el) return;
+      const now = new Date();
+      const pad = n => String(n).padStart(2, '0');
+      el.textContent = `${pad(now.getDate())}/${pad(now.getMonth() + 1)}/${now.getFullYear()} ${pad(now.getHours())}:${pad(now.getMinutes())}:${pad(now.getSeconds())}`;
+    }
+    setInterval(updateGhospClock, 1000);
+
+    function toggleGhospTheme() {
+      const isGhosp = document.body.classList.toggle('theme-ghosp');
+      const btn = document.getElementById('btn-toggle-theme');
+      if (btn) {
+        btn.textContent = isGhosp ? '🌗 Tema: G-HOSP Claro' : '🌙 Tema: Modo Escuro';
+      }
+    }
+
+    function setGhospSectorView(viewMode) {
+      currentGhospView = viewMode;
+      const gridEl = document.getElementById('sectors-grid');
+      const tableEl = document.getElementById('sectors-table-container');
+      const btnCards = document.getElementById('btn-view-cards');
+      const btnTable = document.getElementById('btn-view-table');
+      if (gridEl && tableEl) {
+        gridEl.classList.toggle('hidden', viewMode !== 'CARDS');
+        tableEl.classList.toggle('hidden', viewMode !== 'TABLE');
+      }
+      if (btnCards && btnTable) {
+        btnCards.className = viewMode === 'CARDS'
+          ? 'px-3 py-1.5 rounded-lg bg-teal-600 text-white text-xs font-bold shadow transition ghosp-keep-white'
+          : 'px-3 py-1.5 rounded-lg bg-slate-800 hover:bg-slate-700 text-slate-300 text-xs font-semibold border border-slate-700 transition';
+        btnTable.className = viewMode === 'TABLE'
+          ? 'px-3 py-1.5 rounded-lg bg-teal-600 text-white text-xs font-bold shadow transition ghosp-keep-white'
+          : 'px-3 py-1.5 rounded-lg bg-slate-800 hover:bg-slate-700 text-slate-300 text-xs font-semibold border border-slate-700 transition';
+      }
+    }
 
     function switchTab(tab) {
+      const modTitles = {
+        twin: 'NIR — Censo Hospitalar & Mapa Visual de Leitos (340 Fixos + PS + 18 SRPA)',
+        sim: 'Sala de Comando de Crise — Energia, Farmácia, TI, CC/SRPA & Utilidades',
+        evidencias: 'Suporte à Decisão Clínica — 16 Protocolos Baseados em Evidências & Monitor 96h',
+        pep: 'PEP G-HOSP — Prontuário Eletrônico do Paciente & Prescrição Médica/Enfermagem'
+      };
+      const bc = document.getElementById('ghosp-breadcrumb-modulo');
+      if (bc && modTitles[tab]) bc.textContent = modTitles[tab];
+
       ['twin', 'sim', 'evidencias', 'pep'].forEach(t => {
         const panel = document.getElementById(`tab-${t}`);
         if (panel) panel.classList.toggle('hidden', t !== tab);
         const btn = document.getElementById(`tab-btn-${t}`);
         if (!btn) return;
         if (t === tab) {
-          btn.className = "px-4 py-2.5 text-sm font-semibold border-b-2 border-teal-400 text-teal-300 transition flex items-center gap-1.5";
+          btn.className = "px-4 py-2 text-xs md:text-sm font-bold border-b-2 border-teal-400 text-teal-300 transition flex items-center gap-1.5";
         } else {
-          btn.className = "px-4 py-2.5 text-sm font-semibold border-b-2 border-transparent text-slate-400 hover:text-slate-200 transition flex items-center gap-1.5";
+          btn.className = "px-4 py-2 text-xs md:text-sm font-semibold border-b-2 border-transparent text-slate-400 hover:text-slate-200 transition flex items-center gap-1.5";
         }
       });
       if (tab === 'pep') {
@@ -1526,10 +1910,51 @@
       }).join('');
     }
 
+    function buildGhospBedGrid(s) {
+      const totalSlots = Math.max(s.leitos_instalados || 0, (s.ocupados_atual || 0) + (s.leitos_bloqueados || 0));
+      const critCount = Math.min(s.ocupados_atual, s.pacientes_criticos || 0);
+      const preAltaCount = Math.min(Math.max(0, s.ocupados_atual - critCount), s.elegiveis_alta_segura || 0);
+      const extraCount = Math.max(0, s.ocupados_atual - s.leitos_operacionais);
+      const regCount = Math.max(0, s.ocupados_atual - critCount - preAltaCount - extraCount);
+      const bloqCount = s.leitos_bloqueados || 0;
+
+      const boxes = [];
+      for (let i = 1; i <= totalSlots; i++) {
+        const numStr = String(i).padStart(2, '0');
+        let cls = 'ghosp-bed-livre';
+        let label = `Leito ${s.codigo}-${numStr} • LIVRE / DISPONÍVEL`;
+        let clickAttr = `onclick="abrirModalSetor(${JSON.stringify(s).replace(/"/g, '&quot;')})"`;
+
+        if (i <= critCount) {
+          cls = 'ghosp-bed-critico';
+          label = `Leito ${s.codigo}-${numStr} • OCUPADO CRÍTICO / VM (Clique p/ abrir PEP)`;
+          clickAttr = `onclick="abrirPacientesSetor('${s.codigo}')"`;
+        } else if (i <= critCount + regCount) {
+          cls = 'ghosp-bed-regular';
+          label = `Leito ${s.codigo}-${numStr} • OCUPADO REGULAR (Clique p/ abrir PEP)`;
+          clickAttr = `onclick="abrirPacientesSetor('${s.codigo}')"`;
+        } else if (i <= critCount + regCount + preAltaCount) {
+          cls = 'ghosp-bed-prealta';
+          label = `Leito ${s.codigo}-${numStr} • PRÉ-ALTA SINALIZADA (Clique p/ abrir PEP)`;
+          clickAttr = `onclick="abrirPacientesSetor('${s.codigo}')"`;
+        } else if (i <= critCount + regCount + preAltaCount + extraCount) {
+          cls = 'ghosp-bed-extra';
+          label = `Leito Extra/Maca ${s.codigo}-EX${numStr} • APOIO / SOBRECARGA (Clique p/ abrir PEP)`;
+          clickAttr = `onclick="abrirPacientesSetor('${s.codigo}')"`;
+        } else if (i > totalSlots - bloqCount) {
+          cls = 'ghosp-bed-bloqueado';
+          label = `Leito ${s.codigo}-${numStr} • BLOQUEADO (Isolamento / Manutenção)`;
+        }
+
+        boxes.push(`<div class="ghosp-bed-box ${cls}" title="${label}" ${clickAttr}>${numStr}</div>`);
+      }
+      return boxes.join('');
+    }
+
     function renderSectors(sectors) {
       const grid = document.getElementById('sectors-grid');
       grid.innerHTML = sectors.map(s => {
-        const borderClass = s.nivel_alerta === 'CRITICO' ? 'border-rose-800/80' : (s.nivel_alerta === 'ALERTA' ? 'border-amber-800/80' : 'border-slate-800');
+        const borderClass = s.nivel_alerta === 'CRITICO' ? 'border-rose-800/80 sector-critico' : (s.nivel_alerta === 'ALERTA' ? 'border-amber-800/80 sector-alerta' : 'border-slate-800');
         const badgeAlert = s.nivel_alerta === 'CRITICO'
           ? '<span class="px-2 py-0.5 text-[10px] font-bold rounded bg-rose-950 text-rose-300 border border-rose-800">CRÍTICO / SATURADO</span>'
           : (s.nivel_alerta === 'ALERTA'
@@ -1540,21 +1965,24 @@
           ? '<span class="text-[10px] px-1.5 py-0.5 rounded bg-sky-950 text-sky-300 border border-sky-800 font-semibold">LEITOS DE APOIO PS</span>'
           : (s.categoria_leito === 'APOIO_SRPA'
             ? '<span class="text-[10px] px-1.5 py-0.5 rounded bg-fuchsia-950 text-fuchsia-300 border border-fuchsia-800 font-semibold">SRPA (18 FIXOS)</span>'
-            : '<span class="text-[10px] px-1.5 py-0.5 rounded bg-slate-800 text-teal-300 border border-slate-700">LEITO FIXO (340)</span>');
+            : '<span class="text-[10px] px-1.5 py-0.5 rounded bg-slate-800 text-teal-300 border border-slate-700 font-semibold">LEITO FIXO (340)</span>');
 
         const barColor = s.taxa_ocupacao > 100 ? 'bg-rose-500' : (s.taxa_ocupacao >= 90 ? 'bg-amber-500' : 'bg-teal-500');
+        const livresCount = Math.max(0, s.leitos_operacionais - s.ocupados_atual);
 
         const equipDeficitHtml = (s.deficit_ventiladores > 0 || s.deficit_monitores > 0)
           ? `<span class="block text-[10px] font-bold text-rose-400">⚠️ Falta: ${s.deficit_ventiladores > 0 ? `-${s.deficit_ventiladores} VM ` : ''}${s.deficit_monitores > 0 ? `-${s.deficit_monitores} Mon` : ''}</span>`
           : `<span class="block text-[10px] text-slate-400">${s.pacientes_criticos} crít. • ${s.elegiveis_alta_segura} pré-alta</span>`;
 
+        const bedBoxesHtml = buildGhospBedGrid(s);
+
         return `
-          <div class="bg-slate-900 border ${borderClass} rounded-xl p-4 flex flex-col justify-between shadow-sm">
+          <div class="ghosp-sector-card bg-slate-900 border ${borderClass} rounded-xl p-4 flex flex-col justify-between shadow-sm">
             <div>
-              <div class="flex items-start justify-between gap-2">
+              <div class="flex items-start justify-between gap-2 pb-2 border-b border-slate-800/80">
                 <div>
                   <div class="flex items-center gap-1.5 mb-0.5">
-                    <span class="text-[11px] font-mono text-teal-400">${s.codigo}</span>
+                    <span class="text-[11px] font-mono font-bold text-teal-400">${s.codigo}</span>
                     ${catBadge}
                   </div>
                   <h3 class="font-bold text-sm text-white">${s.nome}</h3>
@@ -1562,9 +1990,9 @@
                 ${badgeAlert}
               </div>
 
-              <div class="mt-3">
+              <div class="mt-2.5">
                 <div class="flex justify-between text-xs mb-1">
-                  <span class="text-slate-300 font-medium">Ocupados: <strong>${s.ocupados_atual}</strong> / ${s.leitos_operacionais} op. (${s.leitos_bloqueados} bloq)</span>
+                  <span class="text-slate-300 font-medium">Ocup: <strong>${s.ocupados_atual}</strong>/${s.leitos_operacionais} op. • <strong class="text-emerald-400">${livresCount} livres</strong> (${s.leitos_bloqueados} bloq)</span>
                   <span class="font-bold ${s.taxa_ocupacao > 100 ? 'text-rose-400' : 'text-white'}">${s.taxa_ocupacao}%</span>
                 </div>
                 <div class="w-full bg-slate-800 h-2 rounded-full overflow-hidden">
@@ -1572,7 +2000,18 @@
                 </div>
               </div>
 
-              <div class="grid grid-cols-2 gap-2 mt-3 bg-slate-950/90 rounded-lg p-2.5 border border-slate-800/80 text-xs">
+              <!-- Mapa Visual de Leitos G-HOSP da Ala -->
+              <div class="mt-3 bg-slate-950/90 border border-slate-800/90 rounded-lg p-2">
+                <div class="flex items-center justify-between text-[10px] text-slate-400 mb-1.5">
+                  <span class="font-bold uppercase tracking-wider">Mapa de Leitos G-HOSP (${s.leitos_instalados} inst.)</span>
+                  <span>🟥 ${s.pacientes_criticos} Crít • 🟨 ${s.elegiveis_alta_segura} Alta • 🟩 ${livresCount} Vago</span>
+                </div>
+                <div class="flex flex-wrap gap-1 max-h-28 overflow-y-auto pr-0.5">
+                  ${bedBoxesHtml}
+                </div>
+              </div>
+
+              <div class="grid grid-cols-2 gap-2 mt-2.5 bg-slate-950/90 rounded-lg p-2.5 border border-slate-800/80 text-xs">
                 <div>
                   <span class="text-slate-400 block text-[11px]">Médicos / Enf / Téc</span>
                   <span class="font-semibold text-white">${s.medicos_turno}M • ${s.enfermeiros_turno}E • ${s.tecnicos_turno}T</span>
@@ -1589,25 +2028,67 @@
                 </div>
               </div>
 
-              <div class="mt-2.5 flex items-center justify-between text-[11px] text-slate-400">
-                <span>Relação: <strong>${s.relacao_pac_tecnico} pac/téc</strong></span>
+              <div class="mt-2 flex items-center justify-between text-[11px] text-slate-400">
+                <span>Dimensionamento: <strong>${s.relacao_pac_tecnico} pac/téc</strong></span>
                 <span class="${s.atraso_aprazamento_min >= 20 ? 'text-rose-400 font-semibold' : 'text-slate-400'}">
-                  Atraso Aprazamento: +${s.atraso_aprazamento_min} min
+                  Aprazamento PEP: +${s.atraso_aprazamento_min} min
                 </span>
               </div>
             </div>
 
-            <div class="flex gap-2 mt-4 pt-3 border-t border-slate-800">
-              <button onclick="abrirPacientesSetor('${s.codigo}')" class="flex-1 py-1.5 px-2.5 rounded-lg bg-slate-800 hover:bg-slate-700 text-xs font-medium text-teal-300 transition">
-                💊 Ver Pacientes (${s.ocupados_atual})
+            <div class="flex gap-2 mt-3.5 pt-2.5 border-t border-slate-800">
+              <button onclick="abrirPacientesSetor('${s.codigo}')" class="flex-1 py-1.5 px-2.5 rounded-lg bg-teal-700 hover:bg-teal-600 text-xs font-bold text-white transition shadow-sm ghosp-keep-white">
+                📋 Abrir PEP / Pacientes (${s.ocupados_atual})
               </button>
-              <button onclick='abrirModalSetor(${JSON.stringify(s)})' class="py-1.5 px-2.5 rounded-lg bg-slate-950 hover:bg-slate-800 border border-slate-700 text-xs text-slate-300 transition">
-                ⚙️ Calibrar
+              <button onclick='abrirModalSetor(${JSON.stringify(s)})' class="py-1.5 px-2.5 rounded-lg bg-slate-950 hover:bg-slate-800 border border-slate-700 text-xs font-semibold text-slate-300 transition">
+                ⚙️ Censo / RH
               </button>
             </div>
           </div>
         `;
       }).join('');
+
+      // Renderizar também a Grade Tabular de Censo Diário G-HOSP
+      const tbody = document.getElementById('sectors-table-body');
+      if (tbody) {
+        tbody.innerHTML = sectors.map(s => {
+          const livres = Math.max(0, s.leitos_operacionais - s.ocupados_atual);
+          const txBadge = s.taxa_ocupacao > 100
+            ? 'bg-rose-950 text-rose-300 border-rose-800'
+            : (s.taxa_ocupacao >= 90 ? 'bg-amber-950 text-amber-300 border-amber-800' : 'bg-emerald-950 text-emerald-300 border-emerald-800');
+          const tipoLabel = s.categoria_leito === 'APOIO_PS'
+            ? 'Apoio PS (Separado)'
+            : (s.categoria_leito === 'APOIO_SRPA' ? 'Apoio Cirúrgico (18 SRPA)' : 'Internação / UTI Fixo (340)');
+          return `
+            <tr class="hover:bg-slate-950/60">
+              <td class="py-2.5 px-3 font-mono font-bold text-teal-400">${s.codigo}</td>
+              <td class="py-2.5 px-3 font-bold text-white">${s.nome}</td>
+              <td class="py-2.5 px-3 text-slate-300">${tipoLabel}</td>
+              <td class="py-2.5 px-2 text-center font-mono font-bold">${s.leitos_instalados}</td>
+              <td class="py-2.5 px-2 text-center font-mono text-slate-400">${s.leitos_bloqueados}</td>
+              <td class="py-2.5 px-2 text-center font-mono font-semibold">${s.leitos_operacionais}</td>
+              <td class="py-2.5 px-2 text-center font-mono font-bold text-sky-400">${s.ocupados_atual}</td>
+              <td class="py-2.5 px-2 text-center font-mono font-bold text-emerald-400">${livres}</td>
+              <td class="py-2.5 px-2 text-center font-mono font-bold text-rose-400">${s.pacientes_criticos} (${s.ventiladores_em_uso} VM)</td>
+              <td class="py-2.5 px-2 text-center font-mono font-bold text-amber-400">${s.elegiveis_alta_segura}</td>
+              <td class="py-2.5 px-2 text-center">
+                <span class="px-2 py-0.5 rounded border font-bold ${txBadge}">${s.taxa_ocupacao}%</span>
+              </td>
+              <td class="py-2.5 px-3 text-[11px] text-slate-300">
+                ${s.medicos_turno}M / ${s.enfermeiros_turno}E / ${s.tecnicos_turno}T • Mon: ${s.monitores_em_uso}/${s.monitores_disponiveis}
+              </td>
+              <td class="py-2.5 px-3 text-right space-x-1">
+                <button onclick="abrirPacientesSetor('${s.codigo}')" class="px-2 py-1 rounded bg-teal-700 hover:bg-teal-600 text-white text-[11px] font-bold ghosp-keep-white">
+                  PEP (${s.ocupados_atual})
+                </button>
+                <button onclick='abrirModalSetor(${JSON.stringify(s)})' class="px-2 py-1 rounded bg-slate-800 hover:bg-slate-700 text-slate-200 border border-slate-700 text-[11px]">
+                  Calibrar
+                </button>
+              </td>
+            </tr>
+          `;
+        }).join('');
+      }
     }
 
     function renderPharmacyTable(pharmacy) {
@@ -2069,23 +2550,46 @@
            </div>`
         : '';
 
+      const atdNum = String(202600000 + (p.id || 1) * 37).slice(0, 9);
       const container = document.getElementById('pep-detail-content');
       container.innerHTML = `
-        <div class="space-y-5">
-          <div class="flex flex-wrap items-start justify-between gap-4 border-b border-slate-800 pb-4">
-            <div>
-              <div class="flex items-center gap-2">
-                <span class="px-2.5 py-0.5 rounded bg-teal-950 text-teal-300 border border-teal-800 font-mono text-xs font-bold">${p.leito}</span>
-                <h2 class="text-lg font-bold text-white">${p.codigo_anonimo} <span class="text-sm font-normal text-slate-400">(Hash: ${p.iniciais_hash})</span></h2>
-                <span class="text-xs text-slate-400">• ${p.idade} anos • Sexo: ${p.sexo} • Internação: ${p.dias_internacao}d</span>
+        <div class="space-y-4">
+          <!-- Cabeçalho de Ficha de Internação / Atendimento G-HOSP (SUS / AIH) -->
+          <div class="bg-slate-950 border border-slate-800 rounded-xl overflow-hidden">
+            <div class="ghosp-top-bar px-4 py-2 flex flex-wrap items-center justify-between gap-2 text-xs">
+              <div class="flex flex-wrap items-center gap-2">
+                <span class="px-2 py-0.5 rounded bg-white/20 text-white font-mono font-bold ghosp-keep-white">G-HOSP • PEP ELETRÔNICO</span>
+                <span class="font-mono font-bold text-emerald-200 ghosp-keep-white">ATENDIMENTO Nº ${atdNum}</span>
+                <span class="text-sky-100 ghosp-keep-white">• CONVÊNIO: <strong>01 - SUS / AIH ALTA COMPLEXIDADE (HRO)</strong></span>
               </div>
-              <p class="text-sm font-semibold text-slate-200 mt-1">CID-10 ${p.cid10}: ${p.diagnostico}</p>
-              <p class="text-xs text-slate-400 mt-0.5">Setor: ${p.sector_nome} • Suporte: <strong>${p.suporte_ventilatorio}</strong> • Isolamento: <strong>${p.isolamento}</strong> • Origem: ${p.origem_admissao}</p>
+              <div class="flex items-center gap-2 no-print">
+                <button onclick="window.print()" class="px-3 py-1 rounded ${it_sys.status_sistema === 'QUEDA_INDETERMINADA' ? 'bg-purple-700 hover:bg-purple-600 text-white border-purple-400 font-bold' : 'bg-white/20 hover:bg-white/30 text-white border-white/30 font-semibold'} text-xs border ghosp-keep-white">
+                  🖨️ ${it_sys.status_sistema === 'QUEDA_INDETERMINADA' ? 'Imprimir Formulário de Contingência (Papel)' : '[F6] Imprimir Prescrição G-HOSP'}
+                </button>
+              </div>
             </div>
-            <div class="flex items-center gap-2 no-print">
-              <button onclick="window.print()" class="px-3 py-1.5 rounded-lg ${it_sys.status_sistema === 'QUEDA_INDETERMINADA' ? 'bg-purple-700 hover:bg-purple-600 text-white border-purple-400 font-bold' : 'bg-slate-800 hover:bg-slate-700 text-slate-200 border-slate-700 font-medium'} text-xs border">
-                🖨️ ${it_sys.status_sistema === 'QUEDA_INDETERMINADA' ? 'Imprimir Formulário de Contingência em Papel' : 'Imprimir Prescrição'}
-              </button>
+
+            <div class="p-3.5 grid grid-cols-2 md:grid-cols-4 gap-3 text-xs border-b border-slate-800">
+              <div>
+                <span class="text-[10px] uppercase text-slate-400 font-bold block">Paciente (Prontuário LGPD)</span>
+                <span class="font-bold text-sm text-white">${p.codigo_anonimo}</span>
+                <span class="text-[11px] text-slate-400 block">Hash: ${p.iniciais_hash} • ${p.idade}a • Sexo: ${p.sexo}</span>
+              </div>
+              <div>
+                <span class="text-[10px] uppercase text-slate-400 font-bold block">Unidade Assistencial / Leito</span>
+                <span class="font-mono font-bold text-sm text-teal-400">${p.leito}</span>
+                <span class="text-[11px] text-slate-400 block">${p.sector_nome}</span>
+              </div>
+              <div>
+                <span class="text-[10px] uppercase text-slate-400 font-bold block">Diagnóstico Principal (CID-10)</span>
+                <span class="font-bold text-slate-200">${p.cid10} — ${p.diagnostico}</span>
+                <span class="text-[11px] text-slate-400 block">Origem: ${p.origem_admissao} • Perm.: ${p.dias_internacao}d</span>
+              </div>
+              <div>
+                <span class="text-[10px] uppercase text-slate-400 font-bold block">Suporte & Escore Clínico</span>
+                <span class="font-bold text-rose-400">${p.gravidade.toUpperCase()} • NEWS2: ${p.escore_news2}</span>
+                <span class="text-[11px] text-slate-400 block">Vent.: <strong>${p.suporte_ventilatorio}</strong> • Isol.: ${p.isolamento}</span>
+              </div>
             </div>
           </div>
 
@@ -2298,7 +2802,17 @@
     }
 
     window.addEventListener('DOMContentLoaded', () => {
+      updateGhospClock();
       carregarDashboard();
+      window.addEventListener('keydown', (e) => {
+        if (e.key === 'F8') {
+          e.preventDefault();
+          executarMitigacao();
+        } else if (e.key === 'F10') {
+          e.preventDefault();
+          resetarSimulacao();
+        }
+      });
     });
   </script>
 </body>
