@@ -456,6 +456,54 @@ def calcular_painel_gemeo_digital():
         int(round((saidas_apos_11h_qtd * 0.45) + (excesso_setup * 4.5)))
     )
 
+    planos_literatura = [
+        {
+            "codigo": "PLANO_1_DISCHARGE_LOUNGE",
+            "numero": 1,
+            "titulo": "Plano 1: Discharge / Transit Lounge (Sala de Acolhimento de Alta HRO)",
+            "referencia": "Monash Health Transit Lounge • NHS SAFER Patient Flow Bundle • IHI Hospital Flow",
+            "gargalo_alvo": "Alta médica assinada antes das 11h, mas paciente ocupa o leito até a tarde aguardando ambulância TFD ou familiar pós-expediente.",
+            "acao_pratica": "Desacopla o leito clínico da logística de transporte: às 09h30, transfere o paciente com alta médica assinada para a Sala de Acolhimento de Alta (poltronas reclináveis, refeição, enfermagem de transição e embarque direto na portaria).",
+            "meta_impacto": "Saída Efetiva: 95% | Saída Física Antes das 11h: 80% | Libera o leito para higienização às 09h30.",
+        },
+        {
+            "codigo": "PLANO_2_PREPARO_D1_TTO",
+            "numero": 2,
+            "titulo": "Plano 2: Protocolo D-1 ('Golden Hour Pré-Alta' / Kit TTO Antecipado + EDD)",
+            "referencia": "NYU Langone / Johns Hopkins Discharge Before Noon (DBN) • IHI Red2Green Days",
+            "gargalo_alvo": "Alta médica prescrita às 10h30, mas paciente retido até 14h–16h aguardando sumário de alta, receitas controladas (TTOs), laudo AIH/SUS e atestados.",
+            "acao_pratica": "Prepara e valida 100% da documentação (sumário, receitas, laudos SUS e solicitação de transporte) até as 17h da véspera (D-1) para todos os pacientes em Pré-Alta no G-HOSP. Na manhã da alta (07h30–08h30), o médico apenas assina a liberação.",
+            "meta_impacto": "Altas Médicas Assinadas: 95% | Saída Física Antes das 11h: 75%.",
+        },
+        {
+            "codigo": "PLANO_3_CLD_MEDS_TO_BEDS",
+            "numero": 3,
+            "titulo": "Plano 3: Criteria-Led Discharge (CLD) + Farmácia à Beira-Leito ('Meds-to-Beds')",
+            "referencia": "Queensland Health CLD Framework • BMJ Quality & Safety Bedside Reconciliation",
+            "gargalo_alvo": "Espera pela ronda médica completa de toda a enfermaria e atraso na conciliação/orientação farmacêutica de última hora.",
+            "acao_pratica": "Autoriza Alta Guiada por Critérios Clínicos pré-aprovados (afebril >24h, VO plena, dor controlada, exames normais) validada pelo enfermeiro navegador às 08h00, com entrega e orientação farmacêutica ('Meds-to-Beds') diretamente no quarto até as 09h00.",
+            "meta_impacto": "Altas Médicas: 92% | Saída Efetiva: 92% | Saída Física Antes das 11h: 78%.",
+        },
+        {
+            "codigo": "PLANO_4_JANELA_TFD_MATINAL",
+            "numero": 4,
+            "titulo": "Plano 4: Pacto Regional de Janela Matinal TFD (08h30–10h30) — Retorno Sincronizado",
+            "referencia": "Institute for Healthcare Optimization (IHO) • Regulação Macrorregional SUS Grande Oeste/SC",
+            "gargalo_alvo": "Pacientes de outros municípios do Oeste/SC com alta às 09h00 que aguardam até as 17h00 a ambulância municipal terminar consultas na cidade.",
+            "acao_pratica": "O NIR/Serviço Social notifica as Secretarias Municipais de Saúde em D-1 às 16h e vincula o desembarque de pacientes eletivos às 07h00 ao embarque obrigatório de retorno das altas hospitalares na janela 08h30–10h30.",
+            "meta_impacto": "Saída Efetiva: 94% | Saída Física Antes das 11h: 82% (zera retenção TFD vespertina).",
+        },
+        {
+            "codigo": "PLANO_5_KANBAN_SETUP_2H",
+            "numero": 5,
+            "titulo": "Plano 5: Kanban Digital G-HOSP + Equipe 'Pit-Stop' de Setup Terminal (Meta 2,0h)",
+            "referencia": "Lean Six Sigma Hospital Bed Turnaround • AHE Practice Guidance for Environmental Cleaning",
+            "gargalo_alvo": "Atraso de comunicação entre saída física do paciente e início da limpeza + acúmulo de leitos sujos no horário de almoço (Setup > 3h a 6h).",
+            "acao_pratica": "Disparo automático de SMS/Tablet para a Hotelaria no instante do check-out do leito no G-HOSP + dupla 'Pit-Stop' de higienização terminal com carrinho de enxoval pré-montado por ala, cravando o tempo ideal de 2,0h.",
+            "meta_impacto": "Tempo de Setup cravado em 2,0h (Ideal) | Desbloqueio imediato dos leitos em higienização.",
+        },
+    ]
+
     discharge_setup.update({
         "base_elegiveis_dia": base_elegiveis,
         "pct_altas_medicas_assinadas": pct_med,
@@ -473,6 +521,7 @@ def calcular_painel_gemeo_digital():
         "leitos_em_setup_higienizacao": leitos_em_setup_calc,
         "horario_pronto_antes_11h": horario_pronto_antes_11h,
         "horario_pronto_apos_11h": horario_pronto_apos_11h,
+        "planos_literatura": planos_literatura,
     })
 
     recomendacoes = gerar_recomendacoes_contingencia(
@@ -512,6 +561,7 @@ def calcular_painel_gemeo_digital():
         deficit_rh_total=max(0, tot_enf_ideal - tot_enf_atual) + max(0, tot_tec_ideal - tot_tec_atual) + max(0, tot_med_ideal - tot_med_atual),
         risco_global=risco_global,
         utilities=utilities,
+        discharge_setup=discharge_setup,
     )
 
     conn.close()
@@ -1921,14 +1971,17 @@ def gerar_brainstorm_evidencias_hro(
     deficit_rh_total,
     risco_global,
     utilities=None,
+    discharge_setup=None,
 ):
     """
     Gera o Brainstorm Estratégico Baseado em Evidências Científicas calibrado em tempo real
     para o perfil do Hospital Regional do Oeste (340 leitos fixos + PS Apoio + 18 leitos SRPA),
-    incluindo todos os 16 protocolos da literatura internacional e o Monitor de Autossuficiência de 96h.
+    incluindo todos os 17 protocolos da literatura internacional e o Monitor de Autossuficiência de 96h.
     """
     if utilities is None:
         utilities = {}
+    if discharge_setup is None:
+        discharge_setup = {}
 
     mapa_sec = {s["codigo"]: s for s in setores_analisados}
     uti_ad = mapa_sec.get("UTI-AD", {})
@@ -1953,6 +2006,11 @@ def gerar_brainstorm_evidencias_hro(
     crise_hazmat = utilities.get("hazmat_status", "NORMAL") != "NORMAL"
     crise_evac = utilities.get("evacuacao_ala_status", "NORMAL") != "NORMAL"
     crise_materno = utilities.get("sobrecarga_materno_neonatal_status", "NORMAL") != "NORMAL"
+    gargalo_pos11h_setup = (
+        discharge_setup.get("pct_saida_antes_11h", 65) < 55
+        or discharge_setup.get("pct_saida_efetiva", 80) < 75
+        or float(discharge_setup.get("tempo_setup_horas", 2.0)) > 2.5
+    )
     qualquer_ponto_cego = any([crise_o2, crise_agua, crise_sangue, crise_cme, crise_hazmat, crise_evac, crise_materno])
 
     if risco_global >= 75 or blackout or queda_ti or bloqueio_cc or tot_deficit_vent > 0 or qualquer_ponto_cego:
@@ -1962,11 +2020,11 @@ def gerar_brainstorm_evidencias_hro(
             "Capacidade convencional e de contingência ultrapassadas (NAM/IOM Crisis Standards of Care & Joint Commission EM.12.02.11). "
             "Exige intervenção imediata de comando unificado (HICS), proteção de linhas vitais (O2, Água, Sangue, CME) e realocação extraordinária."
         )
-    elif risco_global >= 48 or taxa_ocupacao_fixos >= 90 or ps_superlotado or tot_deficit_mon > 0 or len(meds_em_falta) > 0:
+    elif risco_global >= 48 or taxa_ocupacao_fixos >= 90 or ps_superlotado or tot_deficit_mon > 0 or len(meds_em_falta) > 0 or gargalo_pos11h_setup:
         estagio_csc = "FASE 2 — CONTINGENCY CARE (Capacidade de Contingência Equivalente)"
         cor_csc = "ALERTA"
         desc_csc = (
-            "Espaços, equipamentos e equipes sob pressão operacional (88%–100% dos 340 leitos fixos). "
+            "Espaços, equipamentos e equipes sob pressão operacional (88%–100% dos 340 leitos fixos ou gargalo de saída física pós-11h/setup). "
             "As práticas adaptativas mantêm equivalência funcional de segurança se acionados os protocolos de giro rápido."
         )
     else:
@@ -2037,15 +2095,15 @@ def gerar_brainstorm_evidencias_hro(
             "status_hro": f"{fixos_ocupados}/{fixos_instalados} Fixos ({taxa_ocupacao_fixos}%) • PS Apoio: {ps_apoio_ocupados} • SRPA: {srpa_ocupados}/18",
             "diagnostico": (
                 f"Enfermarias com {leitos_livres_enfermarias} vaga(s) livre(s); {total_altas_seguras} paciente(s) elegíveis para alta segura. "
-                f"Evacuação: {utilities.get('ala_evacuada', 'Nenhuma')}."
+                f"Saída Física <11h: {discharge_setup.get('pct_saida_antes_11h', 65)}% | Setup: {discharge_setup.get('tempo_setup_horas', 2.0)}h."
             ),
-            "diretriz_literatura": "Full Capacity Protocol (Viccellio) + Reverse Triage (Kelen) + Discharge Lounge + Matriz TRAIN Stanford (Evacuação/NICU)."
+            "diretriz_literatura": "Full Capacity Protocol (Viccellio) + Reverse Triage (Kelen) + Discharge Lounge (SAFER/DBN) + Kanban Setup 2,0h."
         },
         {
             "pilar": "STAFF (Equipe Multiprofissional)",
             "status_hro": f"Déficit Global Atual: -{deficit_rh_total} profissionais frente ao ideal RDC-7/COFEN",
             "diagnostico": "Sobrecarga em áreas críticas eleva o atraso de aprazamento medicamentoso no PEP.",
-            "diretriz_literatura": "Functional/Team Nursing (NAM/CHEST): Enfermagem modular supervisionada + remanejamento de ambulatórios eletivos."
+            "diretriz_literatura": "Functional/Team Nursing (NAM/CHEST): Enfermagem modular supervisionada + Criteria-Led Discharge (CLD)."
         },
         {
             "pilar": "STUFF (Equipamentos, Gases, Sangue & CME)",
@@ -2331,6 +2389,24 @@ def gerar_brainstorm_evidencias_hro(
                 "3) No colapso neonatal, converte ala da Maternidade (MAT-OBST) em Unidade Intermediária Canguru (UCINCo) para RNs estáveis de ganho ponderal, abrindo 5 vagas imediatas na UTI-NEO para admitir os prematuros extremos retidos no Centro Obstétrico."
             ),
             "impacto_esperado": "Desbloqueia os 10 leitos da UTI-AD, admite todos os RNs prematuros extremos na UTI-NEO (16/20) e preserva os 340 leitos fixos."
+        },
+        {
+            "codigo": "SAFER_DBN_TRANSIT_LOUNGE_2H",
+            "categoria": "Gargalo de Alta Médica <11h vs. Saída Física >11h & Setup de Leito",
+            "titulo": "17. Pacote SAFER Patient Flow + Discharge Lounge + Preparo D-1 (TTO) + CLD/Meds-to-Beds + Setup Pit-Stop 2,0h",
+            "referencia_cientifica": "NHS SAFER Patient Flow Bundle • Monash Health Transit Lounge • NYU Langone / Johns Hopkins DBN • Queensland CLD",
+            "nivel_evidencia": "Nível A — Elimina o 'Post-Order Dwell Time' (retenção física pós-11h) e restabelece Setup Ideal de 2,0h",
+            "status_recomendacao": "CRITICO_ACIONAR_AGORA" if gargalo_pos11h_setup else "DISPONIVEL_PREVENTIVO",
+            "gatilho_hro": (
+                f"Saída Física <11h em {discharge_setup.get('pct_saida_antes_11h', 65)}% ({discharge_setup.get('pct_saida_apos_11h', 35)}% após 11h) | "
+                f"{discharge_setup.get('leitos_retidos_pos_alta', 0)} pac retidos pós-alta | Setup de Leitos em {discharge_setup.get('tempo_setup_horas', 2.0)}h (Ideal: 2,0h)."
+            ),
+            "decisao_estrategica": (
+                "1) Aciona Sala de Acolhimento de Alta (Discharge Lounge) às 09h00 para pacientes que aguardam ambulância TFD ou familiar, desocupando o leito de enfermaria antes das 11h; "
+                "2) Implanta Kit Pré-Alta D-1 (sumário, receita e AIH prontos na véspera) + Criteria-Led Discharge (CLD) e Farmácia à Beira-Leito (Meds-to-Beds); "
+                "3) Sincroniza Janela Matinal de Retorno TFD (08h30–10h30) e aciona Equipe Pit-Stop de Higienização Terminal com Kanban G-HOSP (Setup = 2,0h)."
+            ),
+            "impacto_esperado": "Eleva saída física antes das 11h para 85%, reduz retenção pós-alta a <4% e fixa o Setup de Leito no tempo ideal de 2,0h."
         },
     ]
 
@@ -2671,6 +2747,10 @@ def aplicar_protocolo_evidencia(codigo_protocolo: str):
         titulo = "Protocolo Baseado em Evidências: Matriz TRAIN (Stanford) de Evacuação & Coorte Neonatal"
         resumo = "Compartimento de UTI-AD descontaminado e reaberto (40 leitos fixos operacionais); RNs estáveis transferidos para cuidado Canguru e 4 prematuros extremos admitidos na UTI-NEO."
 
+    elif codigo_protocolo == "SAFER_DBN_TRANSIT_LOUNGE_2H":
+        conn.close()
+        return aplicar_plano_resolucao_gargalo_altas("COMBO_ZERO_GARGALO_11H")
+
     else:
         conn.close()
         return executar_plano_mitigacao_contingencia()
@@ -2856,5 +2936,101 @@ def simular_gestao_altas_e_setup(
     return calcular_painel_gemeo_digital()
 
 
+def aplicar_plano_resolucao_gargalo_altas(plano_codigo: str):
+    """
+    Executa no Gêmeo Digital HRO um dos 5 Planos Baseados na Literatura Científica
+    (ou o Pacote Integrado Completo / Simulação do Gargalo Pós-11h) para resolver
+    a dissociação entre Alta Médica antes das 11h e Saída Física Efetiva após as 11h,
+    respeitando rigorosamente os 340 leitos fixos, o PS como apoio, os 18 leitos da SRPA
+    e a trava de Setup >= 2,0h.
+    """
+    catalogo_planos = {
+        "SIMULAR_GARGALO_POS_11H": {
+            "pct_altas_medicas_assinadas": 90,
+            "pct_saida_efetiva": 55,
+            "opcao_saida_fisica": "APOS_11H",
+            "pct_saida_antes_11h": 20,
+            "tempo_setup_horas": 4.5,
+            "motivo_atraso_setup": (
+                "Gargalo Pós-Alta (Post-Order Dwell Time): Alta médica assinada cedo, mas 80% saem após 11h "
+                "(espera TFD/família/sumário) + pico de higienização acumulada (Setup 4,5h)"
+            ),
+        },
+        "PLANO_1_DISCHARGE_LOUNGE": {
+            "pct_altas_medicas_assinadas": 90,
+            "pct_saida_efetiva": 95,
+            "opcao_saida_fisica": "ANTES_11H",
+            "pct_saida_antes_11h": 80,
+            "tempo_setup_horas": 2.0,
+            "motivo_atraso_setup": (
+                "[PLANO 1 APLICADO — DISCHARGE LOUNGE (Monash Health / NHS SAFER)] "
+                "Pacientes com alta médica aguardando TFD/família transferidos às 09h30 para a Sala de Alta Assistida; "
+                "leito liberado antes das 11h e higienizado em 2,0h"
+            ),
+        },
+        "PLANO_2_PREPARO_D1_TTO": {
+            "pct_altas_medicas_assinadas": 95,
+            "pct_saida_efetiva": 88,
+            "opcao_saida_fisica": "ANTES_11H",
+            "pct_saida_antes_11h": 75,
+            "tempo_setup_horas": 2.0,
+            "motivo_atraso_setup": (
+                "[PLANO 2 APLICADO — PROTOCOLO D-1 & KIT PRÉ-ALTA (NYU Langone / Johns Hopkins DBN)] "
+                "Sumário, receitas (TTO), AIH e exames validados até 17h de D-1; check-out físico imediato às 08h30 + Setup 2,0h"
+            ),
+        },
+        "PLANO_3_CLD_MEDS_TO_BEDS": {
+            "pct_altas_medicas_assinadas": 92,
+            "pct_saida_efetiva": 92,
+            "opcao_saida_fisica": "ANTES_11H",
+            "pct_saida_antes_11h": 78,
+            "tempo_setup_horas": 2.0,
+            "motivo_atraso_setup": (
+                "[PLANO 3 APLICADO — CRITERIA-LED DISCHARGE (CLD) + MEDS-TO-BEDS (Queensland Health / BMJ Qual Saf)] "
+                "Alta guiada por critérios clínicos às 08h00 com conciliação farmacêutica à beira-leito às 09h00 + Setup 2,0h"
+            ),
+        },
+        "PLANO_4_JANELA_TFD_MATINAL": {
+            "pct_altas_medicas_assinadas": 90,
+            "pct_saida_efetiva": 94,
+            "opcao_saida_fisica": "ANTES_11H",
+            "pct_saida_antes_11h": 82,
+            "tempo_setup_horas": 2.0,
+            "motivo_atraso_setup": (
+                "[PLANO 4 APLICADO — PACTO REGIONAL DE JANELA MATINAL TFD 08h30–10h30 (IHO / Regulação SUS)] "
+                "Ambulâncias municipais que trazem eletivos às 07h00 embarcam as altas hospitalares até 10h30 + Setup 2,0h"
+            ),
+        },
+        "PLANO_5_KANBAN_SETUP_2H": {
+            "pct_altas_medicas_assinadas": 90,
+            "pct_saida_efetiva": 90,
+            "opcao_saida_fisica": "ANTES_11H",
+            "pct_saida_antes_11h": 76,
+            "tempo_setup_horas": 2.0,
+            "motivo_atraso_setup": (
+                "[PLANO 5 APLICADO — KANBAN DIGITAL G-HOSP + EQUIPE PIT-STOP (Lean Six Sigma)] "
+                "Disparo automático no tablet da Hotelaria no check-out e higienização terminal em dupla em exatas 2,0h"
+            ),
+        },
+        "COMBO_ZERO_GARGALO_11H": {
+            "pct_altas_medicas_assinadas": 96,
+            "pct_saida_efetiva": 96,
+            "opcao_saida_fisica": "ANTES_11H",
+            "pct_saida_antes_11h": 85,
+            "tempo_setup_horas": 2.0,
+            "motivo_atraso_setup": (
+                "[PACOTE COMPLETO SAFER + DISCHARGE LOUNGE + D-1 + CLD/MEDS-TO-BEDS + TFD MATINAL + SETUP 2,0H] "
+                "Zero retenção pós-alta: 85% de saídas físicas antes das 11h e Setup cravado em 2,0h"
+            ),
+        },
+    }
 
-
+    cfg = catalogo_planos.get(plano_codigo, catalogo_planos["COMBO_ZERO_GARGALO_11H"])
+    return simular_gestao_altas_e_setup(
+        pct_altas_medicas_assinadas=cfg["pct_altas_medicas_assinadas"],
+        pct_saida_efetiva=cfg["pct_saida_efetiva"],
+        opcao_saida_fisica=cfg["opcao_saida_fisica"],
+        pct_saida_antes_11h=cfg["pct_saida_antes_11h"],
+        tempo_setup_horas=max(2.0, float(cfg["tempo_setup_horas"])),
+        motivo_atraso_setup=cfg["motivo_atraso_setup"],
+    )

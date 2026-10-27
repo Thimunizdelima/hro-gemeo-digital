@@ -10,6 +10,7 @@ from pydantic import BaseModel
 from database import get_connection, init_db
 from simulation_engine import (
     aplicar_perfil_ocupacao_areas,
+    aplicar_plano_resolucao_gargalo_altas,
     aplicar_protocolo_evidencia,
     aplicar_substituicao_terapeutica_prescricao,
     atualizar_atrasos_e_rupturas_prescricao,
@@ -423,6 +424,15 @@ def api_sim_altas_setup(req: AltasSetupRequest):
         tempo_setup_horas=tempo_validado,
         motivo_atraso_setup=req.motivo_atraso_setup,
     )
+
+
+class PlanoAltasRequest(BaseModel):
+    plano_codigo: str = "COMBO_ZERO_GARGALO_11H"
+
+
+@app.post("/api/simulate/plano-altas")
+def api_sim_plano_altas(req: PlanoAltasRequest):
+    return aplicar_plano_resolucao_gargalo_altas(req.plano_codigo)
 
 
 @app.post("/api/simulate/mitigate")
