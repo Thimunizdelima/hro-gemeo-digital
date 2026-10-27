@@ -273,6 +273,21 @@ def init_db(force_reset: bool = False):
         observacao_utilidades TEXT NOT NULL DEFAULT 'Gases medicinais (Tanque VIE 4,8 kgf/cm²), Osmose Reversa/Hemodiálise, Agência Transfusional, CME e rotas de segurança 100% operacionais (Autonomia >= 96h).'
     );
 
+    CREATE TABLE IF NOT EXISTS discharge_and_bed_setup_state (
+        id INTEGER PRIMARY KEY CHECK (id = 1),
+        pct_altas_medicas_assinadas INTEGER NOT NULL DEFAULT 85,
+        pct_saida_efetiva INTEGER NOT NULL DEFAULT 80,
+        opcao_saida_fisica TEXT NOT NULL DEFAULT 'ANTES_11H',
+        pct_saida_antes_11h INTEGER NOT NULL DEFAULT 65,
+        pct_saida_apos_11h INTEGER NOT NULL DEFAULT 35,
+        tempo_setup_horas REAL NOT NULL DEFAULT 2.0 CHECK (tempo_setup_horas >= 2.0),
+        motivo_atraso_setup TEXT NOT NULL DEFAULT 'Padrão Ouro HRO (2,0h — Higienização Terminal Ágil + Camareira/Enxoval)',
+        leitos_retidos_pos_alta INTEGER NOT NULL DEFAULT 6,
+        leitos_em_setup_higienizacao INTEGER NOT NULL DEFAULT 5,
+        status_giro TEXT NOT NULL DEFAULT 'GIRO_REGULAR',
+        observacao_altas_setup TEXT NOT NULL DEFAULT 'Fluxo de altas médicas alinhado com saída física predominante antes das 11h (65%) e tempo ideal de setup de leito de 2,0h.'
+    );
+
     CREATE TABLE IF NOT EXISTS contingency_events (
         id INTEGER PRIMARY KEY AUTOINCREMENT,
         tipo TEXT NOT NULL,
@@ -350,6 +365,25 @@ def init_db(force_reset: bool = False):
                 'NORMAL', 'Nenhuma',
                 'NORMAL', 0,
                 'Gases medicinais (Tanque VIE 4,8 kgf/cm²), Osmose Reversa/Hemodiálise, Agência Transfusional, CME e rotas de segurança 100% operacionais (Autonomia >= 96h).'
+            )
+        """)
+
+    cur.execute("SELECT COUNT(*) as cnt FROM discharge_and_bed_setup_state")
+    if cur.fetchone()["cnt"] == 0:
+        cur.execute("""
+            INSERT OR REPLACE INTO discharge_and_bed_setup_state (
+                id, pct_altas_medicas_assinadas, pct_saida_efetiva,
+                opcao_saida_fisica, pct_saida_antes_11h, pct_saida_apos_11h,
+                tempo_setup_horas, motivo_atraso_setup,
+                leitos_retidos_pos_alta, leitos_em_setup_higienizacao,
+                status_giro, observacao_altas_setup
+            ) VALUES (
+                1, 85, 80,
+                'ANTES_11H', 65, 35,
+                2.0, 'Padrão Ouro HRO (2,0h — Higienização Terminal Ágil + Camareira/Enxoval)',
+                6, 5,
+                'GIRO_REGULAR',
+                'Fluxo de altas médicas alinhado com saída física predominante antes das 11h (65%) e tempo ideal de setup de leito de 2,0h.'
             )
         """)
 

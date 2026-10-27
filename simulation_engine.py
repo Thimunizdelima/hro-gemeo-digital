@@ -122,6 +122,34 @@ def calcular_painel_gemeo_digital():
         util_row = cur.fetchone()
     utilities = dict(util_row)
 
+    # Garantir existência de discharge_and_bed_setup_state (Módulo de Altas Antes/Após 11h & Setup de Leitos >= 2.0h)
+    cur.execute("""
+        CREATE TABLE IF NOT EXISTS discharge_and_bed_setup_state (
+            id INTEGER PRIMARY KEY CHECK (id = 1),
+            pct_altas_medicas_assinadas INTEGER NOT NULL DEFAULT 85,
+            pct_saida_efetiva INTEGER NOT NULL DEFAULT 80,
+            opcao_saida_fisica TEXT NOT NULL DEFAULT 'ANTES_11H',
+            pct_saida_antes_11h INTEGER NOT NULL DEFAULT 65,
+            pct_saida_apos_11h INTEGER NOT NULL DEFAULT 35,
+            tempo_setup_horas REAL NOT NULL DEFAULT 2.0 CHECK (tempo_setup_horas >= 2.0),
+            motivo_atraso_setup TEXT NOT NULL DEFAULT 'Padrão Ouro HRO (2,0h — Higienização Terminal Ágil + Camareira/Enxoval)',
+            leitos_retidos_pos_alta INTEGER NOT NULL DEFAULT 6,
+            leitos_em_setup_higienizacao INTEGER NOT NULL DEFAULT 5,
+            status_giro TEXT NOT NULL DEFAULT 'GIRO_REGULAR',
+            observacao_altas_setup TEXT NOT NULL DEFAULT 'Fluxo de altas médicas alinhado com saída física predominante antes das 11h (65%) e tempo ideal de setup de leito de 2,0h.'
+        )
+    """)
+    cur.execute("SELECT * FROM discharge_and_bed_setup_state WHERE id = 1")
+    ds_row = cur.fetchone()
+    if not ds_row:
+        cur.execute("INSERT OR REPLACE INTO discharge_and_bed_setup_state (id) VALUES (1)")
+        conn.commit()
+        cur.execute("SELECT * FROM discharge_and_bed_setup_state WHERE id = 1")
+        ds_row = cur.fetchone()
+    discharge_setup = dict(ds_row)
+    # Regra estrita: tempo de setup NUNCA inferior a 2.0h
+    discharge_setup["tempo_setup_horas"] = max(2.0, round(float(discharge_setup.get("tempo_setup_horas", 2.0)), 1))
+
     blackout_total = (power["rede_externa"] == "QUEDA_INDETERMINADA" and power["status_geradores"] == "FALHA_TOTAL")
     blackout_parcial = (power["rede_externa"] == "QUEDA_INDETERMINADA" and power["status_geradores"] == "FALHA_PARCIAL")
     sistema_fora_do_ar = (it_system["status_sistema"] == "QUEDA_INDETERMINADA")
@@ -396,9 +424,60 @@ def calcular_painel_gemeo_digital():
     if sistema_fora_do_ar:
         it_system["prescricoes_papel_pendentes"] = tot_ocupados * max(1, math.ceil(it_system["horas_sem_sistema"] / 12.0))
 
+    # Cálculo detalhado do Módulo de Gestão de Altas (Antes/Após 11h) & Setup de Leitos (>= 2,0h)
+    base_elegiveis = max(24, total_altas_seguras)
+    pct_med = max(0, min(100, int(discharge_setup.get("pct_altas_medicas_assinadas", 85))))
+    pct_efet = max(0, min(100, int(discharge_setup.get("pct_saida_efetiva", 80))))
+    pct_antes11 = max(0, min(100, int(discharge_setup.get("pct_saida_antes_11h", 65))))
+    pct_apos11 = 100 - pct_antes11
+    t_setup = max(2.0, round(float(discharge_setup.get("tempo_setup_horas", 2.0)), 1))
+    excesso_setup = round(max(0.0, t_setup - 2.0), 1)
+
+    altas_medicas_qtd = int(round(base_elegiveis * (pct_med / 100.0)))
+    saidas_fisicas_qtd = int(round(altas_medicas_qtd * (pct_efet / 100.0)))
+    retidos_pos_alta = max(0, altas_medicas_qtd - saidas_fisicas_qtd)
+    saidas_antes_11h_qtd = int(round(saidas_fisicas_qtd * (pct_antes11 / 100.0)))
+    saidas_apos_11h_qtd = max(0, saidas_fisicas_qtd - saidas_antes_11h_qtd)
+
+    # Se saída física ocorre antes das 11h (média 09:30) + tempo_setup_horas
+    min_tot_antes = int(round((9.5 + t_setup) * 60))
+    h_antes = (min_tot_antes // 60) % 24
+    m_antes = min_tot_antes % 60
+    horario_pronto_antes_11h = f"{h_antes:02d}:{m_antes:02d}"
+
+    # Se saída física ocorre após as 11h (média 15:00) + tempo_setup_horas
+    min_tot_apos = int(round((15.0 + t_setup) * 60))
+    h_apos = (min_tot_apos // 60) % 24
+    m_apos = min_tot_apos % 60
+    horario_pronto_apos_11h = f"{h_apos:02d}:{m_apos:02d}"
+
+    leitos_em_setup_calc = max(
+        int(discharge_setup.get("leitos_em_setup_higienizacao", 5)),
+        int(round((saidas_apos_11h_qtd * 0.45) + (excesso_setup * 4.5)))
+    )
+
+    discharge_setup.update({
+        "base_elegiveis_dia": base_elegiveis,
+        "pct_altas_medicas_assinadas": pct_med,
+        "pct_saida_efetiva": pct_efet,
+        "pct_saida_antes_11h": pct_antes11,
+        "pct_saida_apos_11h": pct_apos11,
+        "opcao_saida_fisica": "ANTES_11H" if pct_antes11 >= 50 else "APOS_11H",
+        "tempo_setup_horas": t_setup,
+        "excesso_setup_horas": excesso_setup,
+        "altas_medicas_qtd": altas_medicas_qtd,
+        "saidas_fisicas_qtd": saidas_fisicas_qtd,
+        "retidos_pos_alta_medica": retidos_pos_alta,
+        "saidas_antes_11h_qtd": saidas_antes_11h_qtd,
+        "saidas_apos_11h_qtd": saidas_apos_11h_qtd,
+        "leitos_em_setup_higienizacao": leitos_em_setup_calc,
+        "horario_pronto_antes_11h": horario_pronto_antes_11h,
+        "horario_pronto_apos_11h": horario_pronto_apos_11h,
+    })
+
     recomendacoes = gerar_recomendacoes_contingencia(
         setores_analisados, total_altas_seguras, power, it_system, surgical_center,
-        meds_em_falta, pacientes_afetados_falta_med, tot_deficit_vent, tot_deficit_mon, utilities
+        meds_em_falta, pacientes_afetados_falta_med, tot_deficit_vent, tot_deficit_mon, utilities, discharge_setup
     )
 
     risco_global = int(round(sum(s["risco_assistencial"] * s["ocupados_atual"] for s in setores_analisados) / max(1, tot_ocupados)))
@@ -486,6 +565,7 @@ def calcular_painel_gemeo_digital():
         "it_system": it_system,
         "surgical_center": surgical_center,
         "utilities": utilities,
+        "discharge_setup": discharge_setup,
         "pharmacy": farmacia_rows,
         "top_occupied_areas": areas_maior_ocupacao,
         "sectors": setores_analisados,
@@ -497,9 +577,22 @@ def calcular_painel_gemeo_digital():
 
 def gerar_recomendacoes_contingencia(
     setores, total_altas_seguras, power, it_system, surgical_center,
-    meds_em_falta, pac_afetados_med, tot_deficit_vent, tot_deficit_mon, utilities=None
+    meds_em_falta, pac_afetados_med, tot_deficit_vent, tot_deficit_mon, utilities=None, discharge_setup=None
 ):
     recs = []
+    if discharge_setup:
+        t_setup = float(discharge_setup.get("tempo_setup_horas", 2.0))
+        pct_antes = int(discharge_setup.get("pct_saida_antes_11h", 65))
+        pct_efet = int(discharge_setup.get("pct_saida_efetiva", 80))
+        retidos_alta = int(discharge_setup.get("retidos_pos_alta_medica", 0))
+        leitos_setup = int(discharge_setup.get("leitos_em_setup_higienizacao", 0))
+        if t_setup > 2.5 or pct_antes < 45 or pct_efet < 70:
+            recs.append({
+                "prioridade": "CRÍTICA" if (t_setup >= 4.0 or pct_antes <= 30) else "ALTA",
+                "setor": f"GIRO DE LEITOS & HOTELARIA (Setup: {t_setup:.1f}h • Saída <11h: {pct_antes}% • Efetivação: {pct_efet}%)",
+                "acao": f"{retidos_alta} pacientes com alta médica assinada retidos no leito aguardando saída física e {leitos_setup} leitos retidos em higienização/setup (liberação prevista apenas às {discharge_setup.get('horario_pronto_apos_11h', '18:00')}).",
+                "detalhe": "Acionar Discharge Lounge (Sala de Alta) para transferir pacientes com alta médica antes das 11h e mobilizar força-tarefa de Hotelaria para retornar o Setup de Leito ao tempo ideal de 2,0h."
+            })
     if utilities:
         if utilities.get("o2_rede_status") != "NORMAL":
             recs.append({
@@ -1203,9 +1296,24 @@ def executar_plano_mitigacao_contingencia():
             observacao_utilidades = 'Gases medicinais (Tanque VIE 4,8 kgf/cm²), Osmose Reversa/Hemodiálise, Agência Transfusional, CME e rotas de segurança 100% operacionais (Autonomia >= 96h).'
         WHERE id = 1
     """)
+    cur.execute("""
+        UPDATE discharge_and_bed_setup_state
+        SET pct_altas_medicas_assinadas = 95,
+            pct_saida_efetiva = 95,
+            opcao_saida_fisica = 'ANTES_11H',
+            pct_saida_antes_11h = 80,
+            pct_saida_apos_11h = 20,
+            tempo_setup_horas = 2.0,
+            motivo_atraso_setup = 'Padrão Ouro HRO (2,0h — Higienização Terminal Ágil + Camareira/Enxoval)',
+            leitos_retidos_pos_alta = 1,
+            leitos_em_setup_higienizacao = 3,
+            status_giro = 'OTIMIZADO_FAST_TRACK',
+            observacao_altas_setup = 'Fast-Track NIR + Discharge Lounge ativados: 95% de altas médicas efetivadas, 80% com saída física antes das 11h e setup de leitos no tempo ideal de 2,0h.'
+        WHERE id = 1
+    """)
 
     resumo = (
-        f"Plano de Resposta Executado: {total_altas_realizadas} altas seguras efetivadas (Fast-Track), "
+        f"Plano de Resposta Executado: {total_altas_realizadas} altas seguras efetivadas (Fast-Track Antes das 11h + Setup Ideal 2,0h), "
         f"{transferidos_ps} pacientes transferidos do Pronto-Socorro, desbloqueio do fluxo Cirúrgico/UTI/Enfermaria, "
         f"recomposição de monitores/ventiladores, escala crítica de RH, estoque farmacêutico, cluster de TI, energia e infraestrutura vital (O2/Água/Sangue/CME/HazMat)."
     )
@@ -2581,6 +2689,172 @@ def aplicar_protocolo_evidencia(codigo_protocolo: str):
     conn.close()
     atualizar_atrasos_e_rupturas_prescricao()
     return calcular_painel_gemeo_digital()
+
+
+def simular_gestao_altas_e_setup(
+    pct_altas_medicas_assinadas: int = 85,
+    pct_saida_efetiva: int = 80,
+    opcao_saida_fisica: str = "ANTES_11H",
+    pct_saida_antes_11h: int = 65,
+    tempo_setup_horas: float = 2.0,
+    motivo_atraso_setup: str = "Padrão Ouro HRO (2,0h — Higienização Terminal Ágil + Camareira/Enxoval)",
+):
+    """
+    Simula o Módulo de Gestão de Altas (Alta Médica Assinada vs. Saída Física Efetiva do Paciente:
+    Antes das 11h vs. Após as 11h com seletor de percentual) e o Módulo de Setup de Leitos
+    (tempo ideal = 2,0h; ajustável para qualquer tempo >= 2,0h, NUNCA inferior a 2,0h).
+    """
+    conn = get_connection()
+    cur = conn.cursor()
+    agora = datetime.now()
+
+    # Travas rigorosas: percentuais entre 0 e 100 e tempo_setup_horas ESTRITAMENTE >= 2.0h
+    pct_med = max(0, min(100, int(pct_altas_medicas_assinadas)))
+    pct_efet = max(0, min(100, int(pct_saida_efetiva)))
+    pct_antes11 = max(0, min(100, int(pct_saida_antes_11h)))
+    pct_apos11 = 100 - pct_antes11
+    opcao_final = "ANTES_11H" if pct_antes11 >= 50 else "APOS_11H"
+
+    # Regra inegociável: tempo ideal são 2h, nunca inferior a 2,0h
+    t_setup = max(2.0, round(float(tempo_setup_horas), 1))
+    excesso_setup = round(max(0.0, t_setup - 2.0), 1)
+
+    cur.execute("SELECT COUNT(*) as total_altas FROM patients WHERE elegivel_alta_segura = 1")
+    base_elegiveis = max(28, cur.fetchone()["total_altas"])
+
+    altas_medicas_qtd = int(round(base_elegiveis * (pct_med / 100.0)))
+    saidas_fisicas_qtd = int(round(altas_medicas_qtd * (pct_efet / 100.0)))
+    retidos_pos_alta = max(0, altas_medicas_qtd - saidas_fisicas_qtd)
+    saidas_antes_11h_qtd = int(round(saidas_fisicas_qtd * (pct_antes11 / 100.0)))
+    saidas_apos_11h_qtd = max(0, saidas_fisicas_qtd - saidas_antes_11h_qtd)
+
+    # Leitos retidos em higienização/setup devido a saída após as 11h + excesso de setup acima de 2,0h
+    leitos_em_setup = max(2, int(round((saidas_apos_11h_qtd * 0.45) + (excesso_setup * 4.5))))
+
+    enfermarias_alvo = [
+        ("CLIN-CIR", 85, 70),
+        ("CLIN-MED", 80, 66),
+        ("ONCO-UNA", 45, 37),
+        ("MAT-OBST", 35, 27),
+        ("PED-CLIN", 25, 19),
+    ]
+
+    fator_atraso_saida = ((100 - pct_efet) / 100.0) * 0.9 + ((100 - pct_antes11) / 100.0) * 0.8 + ((100 - pct_med) / 100.0) * 0.5
+    fator_atraso_setup = excesso_setup / 2.0
+
+    total_bloqueados_setup_enf = 0
+    for cod, inst_fixo, ocup_otimo in enfermarias_alvo:
+        cur.execute("SELECT id FROM sectors WHERE codigo = ?", (cod,))
+        sec = cur.fetchone()
+        if not sec:
+            continue
+        peso_ala = inst_fixo / 270.0
+        bloq_setup_ala = min(int(inst_fixo * 0.22), int(round((excesso_setup * 3.8 + (saidas_apos_11h_qtd * 0.25)) * peso_ala)))
+        retidos_ala = int(round((fator_atraso_saida * 22.0 + excesso_setup * 2.5) * peso_ala))
+        novo_ocup = min(inst_fixo + 4, max(int(inst_fixo * 0.65), ocup_otimo + retidos_ala))
+        cur.execute(
+            "UPDATE sectors SET ocupados_atual = ?, leitos_bloqueados = ? WHERE id = ?",
+            (novo_ocup, bloq_setup_ala, sec["id"])
+        )
+        sincronizar_pacientes_setor(cur, sec["id"], novo_ocup, agora)
+        total_bloqueados_setup_enf += bloq_setup_ala
+
+    # Impacto direto no Boarding do Pronto-Socorro (PS-EMERG - Leitos de Apoio)
+    cur.execute("SELECT id FROM sectors WHERE codigo = 'PS-EMERG'")
+    ps = cur.fetchone()
+    if ps:
+        boarding_extra = int(round(fator_atraso_saida * 16.0 + fator_atraso_setup * 8.0))
+        novo_ps = max(22, min(68, 25 + boarding_extra))
+        cur.execute("UPDATE sectors SET ocupados_atual = ? WHERE id = ?", (novo_ps, ps["id"]))
+        sincronizar_pacientes_setor(cur, ps["id"], novo_ps, agora)
+
+    # Impacto no giro da UTI Adulto (40 fixos) e SRPA (18 fixos)
+    cur.execute("SELECT id FROM sectors WHERE codigo = 'UTI-AD'")
+    uti = cur.fetchone()
+    if uti:
+        ocup_uti = min(40, max(33, 34 + int(round(fator_atraso_saida * 4.0 + fator_atraso_setup * 2.0))))
+        cur.execute("UPDATE sectors SET ocupados_atual = ?, monitores_em_uso = ? WHERE id = ?", (ocup_uti, ocup_uti, uti["id"]))
+        sincronizar_pacientes_setor(cur, uti["id"], ocup_uti, agora)
+
+    cur.execute("SELECT id FROM sectors WHERE codigo = 'CC-SRPA'")
+    srpa = cur.fetchone()
+    if srpa:
+        ocup_srpa = min(22, max(10, 11 + int(round(fator_atraso_saida * 4.5 + fator_atraso_setup * 2.5))))
+        cur.execute("UPDATE sectors SET ocupados_atual = ?, monitores_em_uso = ? WHERE id = ?", (ocup_srpa, ocup_srpa, srpa["id"]))
+        sincronizar_pacientes_setor(cur, srpa["id"], ocup_srpa, agora)
+
+    if t_setup <= 2.5 and pct_antes11 >= 60 and pct_efet >= 80:
+        status_giro = "OTIMIZADO_ANTES_11H"
+        sev = "NORMAL"
+        obs = (
+            f"✅ GIRO DE LEITOS OTIMIZADO (PADRÃO LEAN / G-HOSP): "
+            f"{pct_med}% de altas médicas assinadas ({altas_medicas_qtd} pac), {pct_efet}% com saída física concluída ({saidas_fisicas_qtd} pac), "
+            f"sendo {pct_antes11}% ANTES das 11h ({saidas_antes_11h_qtd} pac) e {pct_apos11}% APÓS as 11h ({saidas_apos_11h_qtd} pac). "
+            f"Setup de leitos em {t_setup:.1f}h ({motivo_atraso_setup}), liberando leitos prontos a partir das 11h30 e drenando o PS/SRPA."
+        )
+    elif t_setup >= 4.0 or pct_antes11 <= 35 or pct_efet <= 60:
+        status_giro = "GARGALO_CRITICO_POS_11H_SETUP"
+        sev = "CRITICO"
+        obs = (
+            f"🚨 GARGALO CRÍTICO DE SAÍDA FÍSICA & SETUP DE LEITOS: "
+            f"Apenas {pct_antes11}% das saídas físicas ocorreram ANTES das 11h ({saidas_antes_11h_qtd} pac) contra {pct_apos11}% APÓS as 11h ({saidas_apos_11h_qtd} pac), "
+            f"com {retidos_pos_alta} pacientes retidos no leito pós-alta médica ({100 - pct_efet}% sem saída física) e Tempo de Setup em {t_setup:.1f}h "
+            f"(+{excesso_setup:.1f}h acima do ideal de 2,0h — {motivo_atraso_setup}). Resultado: {total_bloqueados_setup_enf} leitos de enfermaria bloqueados em higienização tardia e retenção no PS/SRPA."
+        )
+    else:
+        status_giro = "ALERTA_GIRO_MODERADO"
+        sev = "ALERTA"
+        obs = (
+            f"⚠️ ALERTA DE GIRO DE LEITOS: "
+            f"Altas médicas em {pct_med}% ({altas_medicas_qtd} pac) | Saída física efetiva em {pct_efet}% ({retidos_pos_alta} retidos no leito) | "
+            f"Distribuição horária: {pct_antes11}% Antes das 11h vs. {pct_apos11}% Após as 11h | "
+            f"Tempo de Setup ajustado em {t_setup:.1f}h (Ideal: 2,0h — {motivo_atraso_setup})."
+        )
+
+    cur.execute("""
+        UPDATE discharge_and_bed_setup_state
+        SET pct_altas_medicas_assinadas = ?,
+            pct_saida_efetiva = ?,
+            opcao_saida_fisica = ?,
+            pct_saida_antes_11h = ?,
+            pct_saida_apos_11h = ?,
+            tempo_setup_horas = ?,
+            motivo_atraso_setup = ?,
+            leitos_retidos_pos_alta = ?,
+            leitos_em_setup_higienizacao = ?,
+            status_giro = ?,
+            observacao_altas_setup = ?
+        WHERE id = 1
+    """, (
+        pct_med, pct_efet, opcao_final, pct_antes11, pct_apos11,
+        t_setup, motivo_atraso_setup, retidos_pos_alta, leitos_em_setup,
+        status_giro, obs
+    ))
+
+    cur.execute("""
+        INSERT INTO contingency_events (tipo, titulo, severidade, descricao, impacto_json, criado_em, ativo)
+        VALUES ('ALTAS_E_SETUP', ?, ?, ?, ?, ?, 1)
+    """, (
+        f"Gestão de Altas ({pct_antes11}% <11h / {pct_apos11}% >11h) & Setup de Leitos ({t_setup:.1f}h)",
+        sev,
+        obs,
+        json.dumps({
+            "pct_altas_medicas_assinadas": pct_med,
+            "pct_saida_efetiva": pct_efet,
+            "pct_saida_antes_11h": pct_antes11,
+            "pct_saida_apos_11h": pct_apos11,
+            "tempo_setup_horas": t_setup,
+            "retidos_pos_alta": retidos_pos_alta,
+            "leitos_em_setup": leitos_em_setup,
+        }),
+        agora.strftime("%d/%m/%Y %H:%M:%S")
+    ))
+
+    conn.commit()
+    conn.close()
+    atualizar_atrasos_e_rupturas_prescricao()
+    return calcular_painel_gemeo_digital()
+
 
 
 

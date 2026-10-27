@@ -499,6 +499,238 @@
         </div>
       </div>
 
+      <!-- NOVO: MÓDULO G-HOSP DE GESTÃO DE ALTAS (ANTES/APÓS 11H) & MÓDULO DE SETUP DE LEITOS (>= 2,0H) -->
+      <div class="grid grid-cols-1 lg:grid-cols-12 gap-4">
+
+        <!-- Left (7 cols): Módulo de Altas (Alta Médica Assinada vs. Saída Física Efetiva: Antes das 11h vs. Após as 11h) -->
+        <div class="lg:col-span-7 bg-slate-900 border-2 border-teal-700/80 rounded-xl p-4 flex flex-col justify-between shadow-sm">
+          <div class="space-y-3">
+            <div class="flex flex-wrap items-center justify-between gap-2 border-b border-slate-800 pb-2.5">
+              <div>
+                <div class="flex items-center gap-2">
+                  <span class="px-2 py-0.5 rounded bg-teal-950 text-teal-300 border border-teal-700 text-[10px] font-bold uppercase font-mono">
+                    MÓDULO DE ALTAS G-HOSP • KANBAN NIR
+                  </span>
+                  <h2 class="text-sm font-bold text-white">
+                    📤 Gestão de Altas: Alta Médica vs. Saída Física do Paciente (Antes / Após 11h)
+                  </h2>
+                </div>
+                <p class="text-[11px] text-slate-400 mt-0.5">
+                  Ajuste o percentual de altas médicas assinadas no PEP, a conversão em saída física real do leito e a proporção de saída física <strong>Antes das 11h00</strong> vs. <strong>Após as 11h00</strong>.
+                </p>
+              </div>
+              <span id="badge-status-giro" class="px-2.5 py-1 rounded text-[11px] font-bold border bg-emerald-950 text-emerald-300 border-emerald-700">
+                Giro Otimizado
+              </span>
+            </div>
+
+            <!-- Sliders 1 & 2: Alta Médica Assinada (%) e Saída Efetiva Física (%) -->
+            <div class="grid grid-cols-1 md:grid-cols-2 gap-3 bg-slate-950/90 border border-slate-800 rounded-lg p-3">
+              <div>
+                <div class="flex items-center justify-between text-xs mb-1">
+                  <span class="font-semibold text-slate-300">1. Alta Médica Assinada (PEP):</span>
+                  <strong id="lbl-pct-alta-medica" class="text-teal-400 font-mono text-sm">85%</strong>
+                </div>
+                <input id="inp-pct-alta-medica" type="range" min="10" max="100" step="5" value="85"
+                  oninput="atualizarPreviewAltasSetup()"
+                  class="w-full accent-teal-600 cursor-pointer" />
+                <div class="flex justify-between text-[10px] text-slate-400 mt-0.5">
+                  <span>10% (Ronda Tardia)</span>
+                  <span id="lbl-qtd-alta-medica" class="font-bold text-teal-400">-- altas médicas</span>
+                  <span>100% (Meta Plena)</span>
+                </div>
+              </div>
+
+              <div>
+                <div class="flex items-center justify-between text-xs mb-1">
+                  <span class="font-semibold text-slate-300">2. Saída Efetiva do Paciente (Física):</span>
+                  <strong id="lbl-pct-saida-efetiva" class="text-emerald-400 font-mono text-sm">80%</strong>
+                </div>
+                <input id="inp-pct-saida-efetiva" type="range" min="10" max="100" step="5" value="80"
+                  oninput="atualizarPreviewAltasSetup()"
+                  class="w-full accent-emerald-600 cursor-pointer" />
+                <div class="flex justify-between text-[10px] text-slate-400 mt-0.5">
+                  <span>10% (Retido TFD/Família)</span>
+                  <span id="lbl-qtd-saida-efetiva" class="font-bold text-emerald-400">-- saídas | -- retidos</span>
+                  <span>100% (Lounge Alta)</span>
+                </div>
+              </div>
+            </div>
+
+            <!-- Duas Opções Explícitas de Janela de Saída Física (Antes das 11h vs. Após as 11h) + Seletor de Percentual -->
+            <div class="bg-slate-950/90 border border-slate-800 rounded-lg p-3 space-y-2.5">
+              <div class="flex flex-wrap items-center justify-between gap-2">
+                <span class="text-xs font-bold text-white">
+                  3. Janela de Saída Física do Paciente (Antes das 11h00 vs. Após as 11h00):
+                </span>
+                <div class="flex flex-wrap gap-1.5">
+                  <button type="button" id="btn-opcao-antes11" onclick="selecionarOpcaoSaida11h('ANTES_11H', 75)"
+                    class="px-2.5 py-1 rounded text-[11px] font-bold border transition bg-emerald-600 text-white border-emerald-500 ghosp-keep-white">
+                    ☀️ Opção 1: Saída Física ANTES das 11h
+                  </button>
+                  <button type="button" id="btn-opcao-apos11" onclick="selecionarOpcaoSaida11h('APOS_11H', 25)"
+                    class="px-2.5 py-1 rounded text-[11px] font-bold border transition bg-slate-800 text-slate-300 border-slate-700">
+                    🌇 Opção 2: Saída Física APÓS as 11h
+                  </button>
+                </div>
+              </div>
+
+              <!-- Seletor de Percentual de Saída Antes das 11h vs. Após as 11h -->
+              <div class="grid grid-cols-1 md:grid-cols-12 gap-3 items-center pt-1">
+                <div class="md:col-span-4 bg-slate-900 border border-emerald-800/80 rounded-lg p-2 text-center">
+                  <span class="text-[10px] uppercase font-bold text-emerald-400 block">☀️ Saída Física ANTES das 11h</span>
+                  <div class="flex items-center justify-center gap-1 mt-0.5">
+                    <input id="num-pct-antes11" type="number" min="0" max="100" step="5" value="65"
+                      oninput="sincronizarPercentual11h(this.value, 'ANTES')"
+                      class="w-16 text-center font-mono font-extrabold text-sm rounded px-1 py-0.5 bg-slate-950 border border-slate-700 text-white" />
+                    <span class="font-bold text-sm text-emerald-400">%</span>
+                  </div>
+                  <span id="lbl-pac-antes11" class="text-[10px] text-slate-400 block mt-0.5">-- pac. (Leito pronto: --:--)</span>
+                </div>
+
+                <div class="md:col-span-4 flex flex-col items-center">
+                  <input id="rng-pct-antes11" type="range" min="0" max="100" step="5" value="65"
+                    oninput="sincronizarPercentual11h(this.value, 'ANTES')"
+                    class="w-full accent-teal-600 cursor-pointer" />
+                  <div class="w-full h-2.5 rounded-full overflow-hidden flex mt-1.5 border border-slate-700">
+                    <div id="bar-antes11" class="bg-emerald-500 h-full transition-all" style="width: 65%"></div>
+                    <div id="bar-apos11" class="bg-amber-500 h-full transition-all" style="width: 35%"></div>
+                  </div>
+                  <span class="text-[10px] text-slate-400 mt-1">Seletor de Percentual (0% a 100%)</span>
+                </div>
+
+                <div class="md:col-span-4 bg-slate-900 border border-amber-800/80 rounded-lg p-2 text-center">
+                  <span class="text-[10px] uppercase font-bold text-amber-400 block">🌇 Saída Física APÓS as 11h</span>
+                  <div class="flex items-center justify-center gap-1 mt-0.5">
+                    <input id="num-pct-apos11" type="number" min="0" max="100" step="5" value="35"
+                      oninput="sincronizarPercentual11h(this.value, 'APOS')"
+                      class="w-16 text-center font-mono font-extrabold text-sm rounded px-1 py-0.5 bg-slate-950 border border-slate-700 text-white" />
+                    <span class="font-bold text-sm text-amber-400">%</span>
+                  </div>
+                  <span id="lbl-pac-apos11" class="text-[10px] text-slate-400 block mt-0.5">-- pac. (Leito pronto: --:--)</span>
+                </div>
+              </div>
+            </div>
+          </div>
+
+          <div class="mt-3 pt-2.5 border-t border-slate-800 flex flex-wrap items-center justify-between gap-2">
+            <span id="obs-altas-setup-resumo" class="text-[11px] text-slate-400 flex-1">
+              Ajuste os parâmetros de alta médica, saída física (<11h / >11h) e setup de leito (>= 2h) e clique em Aplicar.
+            </span>
+            <button onclick="aplicarAltasESetup()" class="px-4 py-2 rounded-lg bg-teal-600 hover:bg-teal-500 text-white text-xs font-bold transition shadow ghosp-keep-white">
+              🔄 Aplicar Altas & Setup no Censo HRO
+            </button>
+          </div>
+        </div>
+
+        <!-- Right (5 cols): Módulo de Setup de Leitos (Tempo Ideal = 2,0h | Ajuste apenas >= 2,0h, NUNCA inferior) -->
+        <div class="lg:col-span-5 bg-slate-900 border-2 border-sky-700/80 rounded-xl p-4 flex flex-col justify-between shadow-sm">
+          <div class="space-y-3">
+            <div class="flex items-center justify-between border-b border-slate-800 pb-2.5">
+              <div>
+                <span class="px-2 py-0.5 rounded bg-sky-950 text-sky-300 border border-sky-700 text-[10px] font-bold uppercase font-mono">
+                  HOTELARIA & HIGIENIZAÇÃO TERMINAL • G-HOSP
+                </span>
+                <h3 class="text-sm font-bold text-white mt-0.5">
+                  🧹 Módulo de Setup de Leitos (Tempo Ideal = 2,0h • Mínimo 2,0h)
+                </h3>
+              </div>
+              <span id="badge-tempo-setup" class="px-2.5 py-1 rounded font-mono text-xs font-extrabold bg-emerald-950 text-emerald-300 border border-emerald-700">
+                2,0h (IDEAL)
+              </span>
+            </div>
+
+            <p class="text-[11px] text-slate-400">
+              O tempo ideal de setup do leito (saída física $\rightarrow$ higienização terminal + enxoval $\rightarrow$ leito livre no G-HOSP) é de <strong>2,0 horas</strong>. Você pode simular qualquer tempo <strong>superior a 2,0h</strong> (nunca inferior a 2,0h).
+            </p>
+
+            <!-- Controle de Tempo de Setup (>= 2.0h estrito) -->
+            <div class="bg-slate-950/90 border border-slate-800 rounded-lg p-3 space-y-2.5">
+              <div class="flex items-center justify-between">
+                <label class="text-xs font-bold text-white">Tempo de Setup por Leito (Horas ≥ 2,0h):</label>
+                <div class="flex items-center gap-1.5">
+                  <input id="num-tempo-setup" type="number" min="2.0" max="24.0" step="0.5" value="2.0"
+                    onchange="validarTempoSetupMinimo2h(this.value)"
+                    oninput="validarTempoSetupMinimo2h(this.value, false)"
+                    class="w-20 text-center font-mono font-extrabold text-sm rounded px-2 py-1 bg-slate-900 border border-slate-700 text-white" />
+                  <span class="text-xs font-bold text-sky-400">horas</span>
+                </div>
+              </div>
+
+              <input id="rng-tempo-setup" type="range" min="2.0" max="12.0" step="0.5" value="2.0"
+                oninput="validarTempoSetupMinimo2h(this.value)"
+                class="w-full accent-sky-600 cursor-pointer" />
+
+              <div class="flex justify-between text-[10px] text-slate-400">
+                <span class="font-bold text-emerald-400">2,0h (Mínimo / Ideal)</span>
+                <span>4,0h (+2h atraso)</span>
+                <span>8,0h (+6h crítico)</span>
+                <span class="text-rose-400 font-bold">12,0h+</span>
+              </div>
+
+              <div id="alerta-trava-2h" class="hidden rounded bg-amber-950 border border-amber-700 px-2.5 py-1.5 text-[11px] font-semibold text-amber-300">
+                🔒 Trava Operacional HRO: O tempo de setup nunca pode ser inferior ao tempo ideal de 2,0 horas. Valor ajustado para 2,0h.
+              </div>
+
+              <!-- Botões Rápidos de Tempo de Setup (>= 2,0h) -->
+              <div class="pt-1">
+                <span class="text-[10px] uppercase font-bold text-slate-400 block mb-1">Atalhos de Tempo de Setup (≥ 2,0h):</span>
+                <div class="flex flex-wrap gap-1.5">
+                  <button type="button" onclick="ajustarTempoSetupRapido(2.0, 'Padrão Ouro HRO (2,0h — Higienização Terminal Ágil + Camareira/Enxoval)')"
+                    class="px-2 py-1 rounded bg-emerald-600 hover:bg-emerald-500 text-white text-[11px] font-bold ghosp-keep-white">
+                    ✅ 2,0h (Ideal)
+                  </button>
+                  <button type="button" onclick="ajustarTempoSetupRapido(3.0, 'Atraso Moderado (3,0h — Sobrecarga na Equipe de Hotelaria/Camareiras)')"
+                    class="px-2 py-1 rounded bg-slate-800 hover:bg-slate-700 text-slate-200 border border-slate-700 text-[11px] font-semibold">
+                    ⏱️ 3,0h (+1h)
+                  </button>
+                  <button type="button" onclick="ajustarTempoSetupRapido(4.5, 'Gargalo de Higienização (4,5h — Desinfecção Terminal KPC / Isolamento)')"
+                    class="px-2 py-1 rounded bg-amber-700 hover:bg-amber-600 text-white text-[11px] font-semibold ghosp-keep-white">
+                    ⚠️ 4,5h (+2,5h)
+                  </button>
+                  <button type="button" onclick="ajustarTempoSetupRapido(6.0, 'Atraso Severo (6,0h — Déficit de Equipe de Limpeza + Falta de Enxoval)')"
+                    class="px-2 py-1 rounded bg-rose-700 hover:bg-rose-600 text-white text-[11px] font-bold ghosp-keep-white">
+                    🚨 6,0h (+4h)
+                  </button>
+                  <button type="button" onclick="ajustarTempoSetupRapido(8.0, 'Colapso de Giro (8,0h — Leitos bloqueados por falta de higienização noturna)')"
+                    class="px-2 py-1 rounded bg-rose-900 hover:bg-rose-800 text-white text-[11px] font-bold ghosp-keep-white">
+                    🛑 8,0h (+6h)
+                  </button>
+                </div>
+              </div>
+
+              <div class="pt-1">
+                <label class="block text-[10px] uppercase font-bold text-slate-400 mb-1">Motivo / Condição do Setup de Leitos:</label>
+                <select id="sel-motivo-setup" class="w-full bg-slate-900 border border-slate-700 rounded px-2.5 py-1.5 text-xs text-white">
+                  <option value="Padrão Ouro HRO (2,0h — Higienização Terminal Ágil + Camareira/Enxoval)">✅ Padrão Ouro HRO (2,0h — Higienização Terminal Ágil + Enxoval)</option>
+                  <option value="Atraso Moderado (Sobrecarga de Chamados na Hotelaria no Pico das 11h-14h)">⏱️ Sobrecarga de Chamados na Hotelaria no Pico 11h–14h</option>
+                  <option value="Desinfecção Terminal Complexa (Precaução de Contato KPC / Isolamento)">🦠 Desinfecção Terminal Complexa (Precaução de Contato KPC / Isolamento)</option>
+                  <option value="Déficit na Escala de Higienização Terceirizada / Atraso Lavanderia">⚠️ Déficit na Escala de Higienização / Atraso de Enxoval da Lavanderia</option>
+                  <option value="Subnotificação de Saída Física no G-HOSP (Leito vago não comunicado ao NIR)">🖥️ Subnotificação de Saída Física no G-HOSP (Demora no aviso ao NIR)</option>
+                </select>
+              </div>
+            </div>
+          </div>
+
+          <!-- KPI Resumo do Impacto Combinado (Altas x Setup) -->
+          <div class="mt-3 grid grid-cols-3 gap-2 text-center text-xs bg-slate-950 border border-slate-800 rounded-lg p-2.5">
+            <div>
+              <span class="text-[10px] text-slate-400 block">Retidos Pós-Alta</span>
+              <strong id="kpi-ds-retidos" class="text-sm font-bold text-amber-400">-- leitos</strong>
+            </div>
+            <div class="border-x border-slate-800">
+              <span class="text-[10px] text-slate-400 block">Leitos em Setup</span>
+              <strong id="kpi-ds-em-setup" class="text-sm font-bold text-sky-400">-- leitos</strong>
+            </div>
+            <div>
+              <span class="text-[10px] text-slate-400 block">Excesso Setup</span>
+              <strong id="kpi-ds-excesso" class="text-sm font-bold text-emerald-400">+0,0h</strong>
+            </div>
+          </div>
+        </div>
+
+      </div>
+
       <!-- Tactical Recommendations Banner -->
       <div class="bg-slate-900/90 border border-slate-800 rounded-xl p-4">
         <div class="flex items-center justify-between mb-3">
@@ -1364,11 +1596,236 @@
       renderKPIs(data.kpis, data.power, data.it_system || {}, data.surgical_center || {});
       renderEmergencyBanners(data.power, data.pharmacy, data.kpis, data.it_system || {}, data.surgical_center || {}, data.utilities || {});
       renderTopAreas(data.top_occupied_areas);
+      renderDischargeAndSetupModule(data.discharge_setup || {}, data.kpis || {});
       renderRecommendations(data.recommendations);
       renderSectors(data.sectors);
       renderPharmacyTable(data.pharmacy);
       renderEvents(data.events);
       renderEvidenceBrainstorm(data.evidence_brainstorm || {});
+    }
+
+    function renderDischargeAndSetupModule(ds, kpis) {
+      if (!ds) return;
+      const pctMed = ds.pct_altas_medicas_assinadas ?? 85;
+      const pctEfet = ds.pct_saida_efetiva ?? 80;
+      const pctAntes11 = ds.pct_saida_antes_11h ?? 65;
+      const pctApos11 = 100 - pctAntes11;
+      const tSetup = Math.max(2.0, parseFloat(ds.tempo_setup_horas ?? 2.0));
+
+      const inpMed = document.getElementById('inp-pct-alta-medica');
+      const inpEfet = document.getElementById('inp-pct-saida-efetiva');
+      const rngAntes11 = document.getElementById('rng-pct-antes11');
+      const numAntes11 = document.getElementById('num-pct-antes11');
+      const numApos11 = document.getElementById('num-pct-apos11');
+      const numSetup = document.getElementById('num-tempo-setup');
+      const rngSetup = document.getElementById('rng-tempo-setup');
+      const selMotivo = document.getElementById('sel-motivo-setup');
+
+      if (inpMed) inpMed.value = pctMed;
+      if (inpEfet) inpEfet.value = pctEfet;
+      if (rngAntes11) rngAntes11.value = pctAntes11;
+      if (numAntes11) numAntes11.value = pctAntes11;
+      if (numApos11) numApos11.value = pctApos11;
+      if (numSetup) numSetup.value = tSetup.toFixed(1);
+      if (rngSetup) rngSetup.value = Math.min(12.0, tSetup);
+      if (selMotivo && ds.motivo_atraso_setup) {
+        const exists = Array.from(selMotivo.options).some(o => o.value === ds.motivo_atraso_setup);
+        if (exists) selMotivo.value = ds.motivo_atraso_setup;
+      }
+
+      const obsEl = document.getElementById('obs-altas-setup-resumo');
+      if (obsEl && ds.observacao_altas_setup) {
+        obsEl.textContent = ds.observacao_altas_setup;
+      }
+
+      atualizarPreviewAltasSetup();
+    }
+
+    function sincronizarPercentual11h(val, origem) {
+      let v = parseInt(val, 10);
+      if (isNaN(v)) v = 50;
+      v = Math.max(0, Math.min(100, v));
+      const pctAntes = origem === 'ANTES' ? v : (100 - v);
+      const pctApos = 100 - pctAntes;
+
+      const rngAntes11 = document.getElementById('rng-pct-antes11');
+      const numAntes11 = document.getElementById('num-pct-antes11');
+      const numApos11 = document.getElementById('num-pct-apos11');
+      if (rngAntes11) rngAntes11.value = pctAntes;
+      if (numAntes11) numAntes11.value = pctAntes;
+      if (numApos11) numApos11.value = pctApos;
+
+      atualizarPreviewAltasSetup();
+    }
+
+    function selecionarOpcaoSaida11h(opcao, pctAntesSugerido) {
+      sincronizarPercentual11h(pctAntesSugerido, 'ANTES');
+      aplicarAltasESetup();
+    }
+
+    function validarTempoSetupMinimo2h(val, enforceInput = true) {
+      let t = parseFloat(val);
+      const alerta = document.getElementById('alerta-trava-2h');
+      if (isNaN(t) || t < 2.0) {
+        if (alerta) alerta.classList.remove('hidden');
+        t = 2.0;
+      } else {
+        if (alerta) alerta.classList.add('hidden');
+      }
+      t = Math.round(t * 10) / 10;
+
+      const numSetup = document.getElementById('num-tempo-setup');
+      const rngSetup = document.getElementById('rng-tempo-setup');
+      if (enforceInput && numSetup) numSetup.value = t.toFixed(1);
+      if (rngSetup) rngSetup.value = Math.min(12.0, Math.max(2.0, t));
+
+      atualizarPreviewAltasSetup();
+    }
+
+    function ajustarTempoSetupRapido(horas, motivo) {
+      const selMotivo = document.getElementById('sel-motivo-setup');
+      if (selMotivo && motivo) {
+        let matched = false;
+        for (const opt of selMotivo.options) {
+          if (opt.value === motivo) {
+            selMotivo.value = motivo;
+            matched = true;
+            break;
+          }
+        }
+        if (!matched) {
+          const newOpt = new Option(motivo, motivo, true, true);
+          selMotivo.add(newOpt);
+        }
+      }
+      validarTempoSetupMinimo2h(Math.max(2.0, horas), true);
+      aplicarAltasESetup();
+    }
+
+    function atualizarPreviewAltasSetup() {
+      const baseElegiveis = (currentDashboard && currentDashboard.discharge_setup && currentDashboard.discharge_setup.base_elegiveis_dia)
+        ? currentDashboard.discharge_setup.base_elegiveis_dia
+        : 36;
+
+      const pctMed = parseInt(document.getElementById('inp-pct-alta-medica')?.value || '85', 10);
+      const pctEfet = parseInt(document.getElementById('inp-pct-saida-efetiva')?.value || '80', 10);
+      const pctAntes = parseInt(document.getElementById('rng-pct-antes11')?.value || '65', 10);
+      const pctApos = 100 - pctAntes;
+
+      let rawSetup = parseFloat(document.getElementById('num-tempo-setup')?.value || '2.0');
+      if (isNaN(rawSetup) || rawSetup < 2.0) rawSetup = 2.0;
+      const tSetup = Math.max(2.0, rawSetup);
+      const excessoSetup = Math.max(0.0, tSetup - 2.0);
+
+      const qtdMed = Math.round(baseElegiveis * (pctMed / 100.0));
+      const qtdEfet = Math.round(qtdMed * (pctEfet / 100.0));
+      const qtdRetidos = Math.max(0, qtdMed - qtdEfet);
+      const qtdAntes = Math.round(qtdEfet * (pctAntes / 100.0));
+      const qtdApos = Math.max(0, qtdEfet - qtdAntes);
+      const leitosSetup = Math.max(2, Math.round((qtdApos * 0.45) + (excessoSetup * 4.5)));
+
+      const fmtHora = (horaBase) => {
+        const totMin = Math.round((horaBase + tSetup) * 60);
+        const hh = String(Math.floor(totMin / 60) % 24).padStart(2, '0');
+        const mm = String(totMin % 60).padStart(2, '0');
+        return `${hh}:${mm}`;
+      };
+
+      const elLblMed = document.getElementById('lbl-pct-alta-medica');
+      const elQtdMed = document.getElementById('lbl-qtd-alta-medica');
+      const elLblEfet = document.getElementById('lbl-pct-saida-efetiva');
+      const elQtdEfet = document.getElementById('lbl-qtd-saida-efetiva');
+      if (elLblMed) elLblMed.textContent = `${pctMed}%`;
+      if (elQtdMed) elQtdMed.textContent = `${qtdMed} altas médicas no PEP`;
+      if (elLblEfet) elLblEfet.textContent = `${pctEfet}%`;
+      if (elQtdEfet) elQtdEfet.textContent = `${qtdEfet} saídas físicas | ${qtdRetidos} retidos`;
+
+      const barAntes = document.getElementById('bar-antes11');
+      const barApos = document.getElementById('bar-apos11');
+      if (barAntes) barAntes.style.width = `${pctAntes}%`;
+      if (barApos) barApos.style.width = `${pctApos}%`;
+
+      const lblPacAntes = document.getElementById('lbl-pac-antes11');
+      const lblPacApos = document.getElementById('lbl-pac-apos11');
+      if (lblPacAntes) lblPacAntes.textContent = `${qtdAntes} pac. (Pronto ~${fmtHora(9.5)})`;
+      if (lblPacApos) lblPacApos.textContent = `${qtdApos} pac. (Pronto ~${fmtHora(15.0)})`;
+
+      const btnAntes = document.getElementById('btn-opcao-antes11');
+      const btnApos = document.getElementById('btn-opcao-apos11');
+      if (btnAntes && btnApos) {
+        if (pctAntes >= 50) {
+          btnAntes.className = 'px-2.5 py-1 rounded text-[11px] font-bold border transition bg-emerald-600 text-white border-emerald-500 ghosp-keep-white';
+          btnApos.className = 'px-2.5 py-1 rounded text-[11px] font-bold border transition bg-slate-800 text-slate-300 border-slate-700';
+        } else {
+          btnAntes.className = 'px-2.5 py-1 rounded text-[11px] font-bold border transition bg-slate-800 text-slate-300 border-slate-700';
+          btnApos.className = 'px-2.5 py-1 rounded text-[11px] font-bold border transition bg-amber-600 text-white border-amber-500 ghosp-keep-white';
+        }
+      }
+
+      const bSetup = document.getElementById('badge-tempo-setup');
+      if (bSetup) {
+        if (tSetup <= 2.0) {
+          bSetup.textContent = `${tSetup.toFixed(1).replace('.', ',')}h (IDEAL)`;
+          bSetup.className = 'px-2.5 py-1 rounded font-mono text-xs font-extrabold bg-emerald-950 text-emerald-300 border border-emerald-700';
+        } else if (tSetup <= 3.5) {
+          bSetup.textContent = `${tSetup.toFixed(1).replace('.', ',')}h (+${excessoSetup.toFixed(1).replace('.', ',')}h)`;
+          bSetup.className = 'px-2.5 py-1 rounded font-mono text-xs font-extrabold bg-amber-950 text-amber-300 border border-amber-700';
+        } else {
+          bSetup.textContent = `${tSetup.toFixed(1).replace('.', ',')}h (+${excessoSetup.toFixed(1).replace('.', ',')}h CRÍTICO)`;
+          bSetup.className = 'px-2.5 py-1 rounded font-mono text-xs font-extrabold bg-rose-950 text-rose-300 border border-rose-700 animate-pulse';
+        }
+      }
+
+      const bGiro = document.getElementById('badge-status-giro');
+      if (bGiro) {
+        if (tSetup <= 2.5 && pctAntes >= 60 && pctEfet >= 80) {
+          bGiro.textContent = '✅ Giro Otimizado (<11h + Setup 2h)';
+          bGiro.className = 'px-2.5 py-1 rounded text-[11px] font-bold border bg-emerald-950 text-emerald-300 border-emerald-700';
+        } else if (tSetup >= 4.0 || pctAntes <= 35 || pctEfet <= 60) {
+          bGiro.textContent = '🚨 Gargalo Crítico (>11h / Setup Lento)';
+          bGiro.className = 'px-2.5 py-1 rounded text-[11px] font-bold border bg-rose-950 text-rose-300 border-rose-700 animate-pulse';
+        } else {
+          bGiro.textContent = '⚠️ Giro em Alerta Moderado';
+          bGiro.className = 'px-2.5 py-1 rounded text-[11px] font-bold border bg-amber-950 text-amber-300 border-amber-700';
+        }
+      }
+
+      const kRet = document.getElementById('kpi-ds-retidos');
+      const kSet = document.getElementById('kpi-ds-em-setup');
+      const kExc = document.getElementById('kpi-ds-excesso');
+      if (kRet) kRet.textContent = `${qtdRetidos} pac.`;
+      if (kSet) kSet.textContent = `${leitosSetup} leitos`;
+      if (kExc) {
+        kExc.textContent = `+${excessoSetup.toFixed(1).replace('.', ',')}h`;
+        kExc.className = excessoSetup > 0 ? 'text-sm font-bold text-rose-400' : 'text-sm font-bold text-emerald-400';
+      }
+    }
+
+    async function aplicarAltasESetup() {
+      const pct_altas_medicas_assinadas = parseInt(document.getElementById('inp-pct-alta-medica')?.value || '85', 10);
+      const pct_saida_efetiva = parseInt(document.getElementById('inp-pct-saida-efetiva')?.value || '80', 10);
+      const pct_saida_antes_11h = parseInt(document.getElementById('rng-pct-antes11')?.value || '65', 10);
+      const opcao_saida_fisica = pct_saida_antes_11h >= 50 ? 'ANTES_11H' : 'APOS_11H';
+      let tempo_setup_horas = parseFloat(document.getElementById('num-tempo-setup')?.value || '2.0');
+      if (isNaN(tempo_setup_horas) || tempo_setup_horas < 2.0) {
+        tempo_setup_horas = 2.0;
+        validarTempoSetupMinimo2h(2.0, true);
+      }
+      const motivo_atraso_setup = document.getElementById('sel-motivo-setup')?.value || 'Padrão Ouro HRO (2,0h — Higienização Terminal Ágil + Camareira/Enxoval)';
+
+      await fetch('/api/simulate/altas-setup', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          pct_altas_medicas_assinadas,
+          pct_saida_efetiva,
+          opcao_saida_fisica,
+          pct_saida_antes_11h,
+          tempo_setup_horas,
+          motivo_atraso_setup
+        })
+      });
+      await carregarDashboard();
     }
 
     async function dispararPontoCego(cenario) {

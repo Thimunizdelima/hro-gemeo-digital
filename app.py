@@ -19,6 +19,7 @@ from simulation_engine import (
     simular_crise_energia_geradores,
     simular_crise_equipamentos,
     simular_falta_medicamento,
+    simular_gestao_altas_e_setup,
     simular_incidente_multiplas_vitimas,
     simular_intercorrencia_operacional,
     simular_queda_sistema_ti,
@@ -401,6 +402,29 @@ def api_sim_ponto_cego(req: PontoCegoRequest):
     return simular_cenario_ponto_cego(req.cenario)
 
 
+class AltasSetupRequest(BaseModel):
+    pct_altas_medicas_assinadas: int = 85
+    pct_saida_efetiva: int = 80
+    opcao_saida_fisica: str = "ANTES_11H"
+    pct_saida_antes_11h: int = 65
+    tempo_setup_horas: float = 2.0
+    motivo_atraso_setup: str = "Padrão Ouro HRO (2,0h — Higienização Terminal Ágil + Camareira/Enxoval)"
+
+
+@app.post("/api/simulate/altas-setup")
+def api_sim_altas_setup(req: AltasSetupRequest):
+    # Regra estrita: tempo ideal = 2,0h, nunca inferior a 2,0h
+    tempo_validado = max(2.0, round(float(req.tempo_setup_horas), 1))
+    return simular_gestao_altas_e_setup(
+        pct_altas_medicas_assinadas=req.pct_altas_medicas_assinadas,
+        pct_saida_efetiva=req.pct_saida_efetiva,
+        opcao_saida_fisica=req.opcao_saida_fisica,
+        pct_saida_antes_11h=req.pct_saida_antes_11h,
+        tempo_setup_horas=tempo_validado,
+        motivo_atraso_setup=req.motivo_atraso_setup,
+    )
+
+
 @app.post("/api/simulate/mitigate")
 def api_sim_mitigate():
     return executar_plano_mitigacao_contingencia()
@@ -411,5 +435,6 @@ def api_sim_reset():
     init_db(force_reset=True)
     atualizar_atrasos_e_rupturas_prescricao()
     return calcular_painel_gemeo_digital()
+
 
 
